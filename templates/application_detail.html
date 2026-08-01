@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}{{ application.company }} - {{ application.role_title }} - Job Tracker{% endblock %}
+{% block content %}
+{{ ui.page_header(application.company, application.role_title, "Edit", "/applications/" ~ application.id ~ "/edit", "Back to List", "/applications") }}
+
+<section class="panel application-detail{% if application.status in ['rejected', 'withdrawn', 'closed'] %} application-row-muted{% endif %}">
+  <div class="detail-header">
+    <div>
+      <div class="detail-label">Status</div>
+      {{ ui.status_badge(application.status) }}
+    </div>
+  </div>
+
+  <div class="detail-section">
+    <h2 class="detail-section-title">Application</h2>
+    <div class="detail-fields">
+      <div class="detail-item"><div class="detail-label">Company</div><div>{{ application.company }}</div></div>
+      <div class="detail-item"><div class="detail-label">Role title</div><div>{{ application.role_title }}</div></div>
+      <div class="detail-item"><div class="detail-label">Location</div><div>{{ application.location or "Not specified" }}</div></div>
+      <div class="detail-item"><div class="detail-label">Work mode</div><div>{{ ui.mode_badge(application.work_mode) }}</div></div>
+    </div>
+  </div>
+
+  <div class="detail-section">
+    <h2 class="detail-section-title">Tracking</h2>
+    <div class="detail-fields">
+      <div class="detail-item"><div class="detail-label">Source</div><div>{{ ui.source_badge(application.source) }}</div></div>
+      <div class="detail-item"><div class="detail-label">Resume used</div><div>{{ application.resume_version or "Not specified" }}</div></div>
+      <div class="detail-item"><div class="detail-label">Applied</div><div>{{ application.applied_date or "Not specified" }}</div></div>
+      <div class="detail-item"><div class="detail-label">Follow-up</div><div>{{ application.follow_up_date or "Not specified" }}</div></div>
+      <div class="detail-item"><div class="detail-label">Salary range</div><div>{{ application.salary_min or "" }}{% if application.salary_min and application.salary_max %} - {% endif %}{{ application.salary_max or "Not specified" }}</div></div>
+      <div class="detail-item"><div class="detail-label">Job posting</div><div>{% if application.jd_url %}<a class="external-link-icon" href="{{ application.jd_url }}" target="_blank" rel="noopener" aria-label="Open job posting" title="Open job posting">&#x2197;</a>{% else %}Not specified{% endif %}</div></div>
+    </div>
+  </div>
+
+  <div class="detail-section">
+    <h2 class="detail-section-title">Notes</h2>
+    <div class="detail-notes">{{ application.notes or "No notes" }}</div>
+  </div>
+</section>
+
+<div class="detail-actions">
+  <form method="post" action="/applications/{{ application.id }}/duplicate" class="d-inline">
+    <button class="btn btn-outline-secondary" type="submit">Duplicate as new</button>
+  </form>
+</div>
+{% endblock %}

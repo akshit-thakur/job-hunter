@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Quick add application</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header class="popup-header">
+        <div>
+          <div class="eyebrow">Job Tracker</div>
+          <h1>Quick add</h1>
+        </div>
+        <span id="connection" class="connection checking" title="Checking tracker" aria-label="Checking tracker"></span>
+      </header>
+
+      <p id="stats" class="stats" aria-live="polite">Connecting...</p>
+
+      <form id="application-form">
+        <label for="company">Company</label>
+        <input id="company" name="company" type="text" autocomplete="organization" required autofocus>
+
+        <label for="role">Role</label>
+        <input id="role" name="role" type="text" autocomplete="off" required>
+
+        <label for="url">Job posting URL</label>
+        <input id="url" name="url" type="url" inputmode="url" autocomplete="url" placeholder="https://">
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3"></textarea>
+
+        <div class="actions">
+          <a href="http://127.0.0.1:9000/" target="_blank" rel="noreferrer">Open tracker</a>
+          <button id="submit" type="submit">Log application</button>
+        </div>
+      </form>
+
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

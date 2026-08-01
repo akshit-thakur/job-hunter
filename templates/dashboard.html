@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Dashboard - Job Tracker{% endblock %}
+{% block content %}
+{{ ui.page_header("Dashboard", "Week: " ~ metrics.week_start ~ " to " ~ metrics.week_end, "Add Application", "/applications/new") }}
+
+<div class="metric-grid mb-3">
+  <div class="metric metric-blue"><div class="label">Submitted This Week</div><div class="value">{{ metrics.submitted_this_week }}</div></div>
+  <div class="metric metric-amber"><div class="label">Remaining This Week</div><div class="value">{{ metrics.remaining_this_week }}</div></div>
+  <div class="metric metric-indigo"><div class="label">Total Applications</div><div class="value">{{ metrics.total_applications }}</div></div>
+  <div class="metric metric-green"><div class="label">Active Applications</div><div class="value">{{ metrics.active_applications }}</div></div>
+  <div class="metric metric-red"><div class="label">Rejected Applications</div><div class="value">{{ metrics.rejected_applications }}</div></div>
+  <div class="metric metric-cyan"><div class="label">Closed Applications</div><div class="value">{{ metrics.closed_applications }}</div></div>
+</div>
+
+<div class="row g-3">
+  {% set total_count = metrics.total_applications if metrics.total_applications else 1 %}
+  {% for title, rows in [
+    ("Status Breakdown", metrics.status_breakdown),
+    ("Source Breakdown", metrics.source_breakdown),
+    ("Location Breakdown", metrics.location_breakdown),
+    ("Work Mode Breakdown", metrics.work_mode_breakdown)
+  ] %}
+  <div class="col-lg-4 col-md-6">
+    <section class="panel dashboard-breakdown">
+      <h2 class="section-title">{{ title }}</h2>
+      <div class="breakdown-list">
+        {% for row in rows %}
+        <div class="breakdown-row">
+          <div class="breakdown-heading"><span>{{ row.label|replace("_", " ") }}</span><strong>{{ row.count }}</strong></div>
+          <div class="breakdown-track"><span style="width: {{ (row.count / total_count * 100)|round(0) }}%"></span></div>
+        </div>
+        {% else %}
+        <div class="text-muted">No data yet.</div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

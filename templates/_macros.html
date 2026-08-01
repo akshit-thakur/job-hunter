@@ -1,0 +1,100 @@
+{% macro page_header(title, subtitle=None, primary_label=None, primary_href=None, secondary_label=None, secondary_href=None) %}
+<div class="page-header">
+  <div>
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<div class="page-subtitle">{{ subtitle }}</div>{% endif %}
+  </div>
+  {% if primary_label or secondary_label %}
+  <div class="page-actions">
+    {% if secondary_label and secondary_href %}
+    <a class="btn btn-sm btn-outline-secondary" href="{{ secondary_href }}">{{ secondary_label }}</a>
+    {% endif %}
+    {% if primary_label and primary_href %}
+    <a class="btn btn-sm btn-primary" href="{{ primary_href }}">{{ primary_label }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro status_badge(status) %}
+<span class="status-pill status-{{ status }}">{{ status|replace("_", " ") }}</span>
+{% endmacro %}
+
+{% macro source_badge(source) %}
+<span class="source-pill source-{{ source }}">{{ source|replace("_", " ") }}</span>
+{% endmacro %}
+
+{% macro mode_badge(work_mode) %}
+<span class="mode-pill mode-{{ work_mode }}">{{ work_mode }}</span>
+{% endmacro %}
+
+{% macro coded_option(kind, item, selected=False) %}
+<option class="{{ kind }}-option {{ kind }}-{{ item }}" value="{{ item }}" {% if selected %}selected{% endif %}>{{ item|replace("_", " ") }}</option>
+{% endmacro %}
+
+{% macro edit_action(application_id, jd_url=None) %}
+{% if jd_url %}
+<a class="btn btn-sm btn-outline-primary action-button" href="{{ jd_url }}" target="_blank" rel="noopener">View</a>
+{% endif %}
+<form method="post" action="/applications/{{ application_id }}/duplicate" class="d-inline">
+  <button class="btn btn-sm btn-outline-secondary action-button" type="submit">Duplicate</button>
+</form>
+<a class="btn btn-sm btn-outline-secondary action-button" href="/applications/{{ application_id }}/edit">Edit</a>
+{% endmacro %}
+
+{% macro applications_table(applications, mode="list") %}
+{% set inactive_statuses = ['rejected', 'withdrawn', 'closed'] %}
+<div class="table-responsive">
+  <table class="table table-sm table-hover align-middle data-table">
+    <thead>
+      {% if mode == "followups" %}
+      <tr>
+        <th class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" data-select-all aria-label="Select all applications"></th><th>Follow-up</th><th>Company</th><th>Role</th><th>Status</th><th>Source</th><th>Resume</th><th>Notes</th><th class="action-column" data-row-actions></th>
+      </tr>
+      {% else %}
+      <tr>
+        <th class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" data-select-all aria-label="Select all applications"></th><th>Company</th><th>Role</th><th>Location</th><th>Status</th><th>Source</th><th>Mode</th>
+        <th>Applied</th><th>Updated</th><th class="action-column" data-row-actions></th>
+      </tr>
+      {% endif %}
+    </thead>
+    <tbody>
+      {% for app in applications %}
+      {% if mode == "followups" %}
+      <tr class="application-row{% if app.status in inactive_statuses %} application-row-muted{% endif %}" data-view-url="/applications/{{ app.id }}" tabindex="0" aria-label="View {{ app.company }} - {{ app.role_title }}">
+        <td class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" name="application_ids" value="{{ app.id }}" form="bulk-update-form" aria-label="Select {{ app.company }} - {{ app.role_title }}"></td>
+        <td class="text-nowrap date-cell">{{ app.follow_up_date }}</td>
+        <td class="primary-cell">{{ app.company }}</td>
+        <td>{{ app.role_title }}</td>
+        <td>{{ status_badge(app.status) }}</td>
+        <td>{{ source_badge(app.source) }}</td>
+        <td>{{ app.resume_version or "" }}</td>
+        <td class="notes-cell">{{ app.notes or "" }}</td>
+        <td class="text-end action-column" data-row-actions>{{ edit_action(app.id, app.jd_url) }}</td>
+      </tr>
+      {% else %}
+      <tr class="application-row{% if app.status in inactive_statuses %} application-row-muted{% endif %}" data-view-url="/applications/{{ app.id }}" tabindex="0" aria-label="View {{ app.company }} - {{ app.role_title }}">
+        <td class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" name="application_ids" value="{{ app.id }}" form="bulk-update-form" aria-label="Select {{ app.company }} - {{ app.role_title }}"></td>
+        <td class="primary-cell">{{ app.company }}</td>
+        <td>{{ app.role_title }}</td>
+        <td>{{ app.location or "" }}</td>
+        <td>{{ status_badge(app.status) }}</td>
+        <td>{{ source_badge(app.source) }}</td>
+        <td>{{ mode_badge(app.work_mode) }}</td>
+        <td class="date-cell">{{ app.applied_date or "" }}</td>
+        <td class="text-nowrap muted-cell">{{ app.updated_at }}</td>
+        <td class="text-end action-column" data-row-actions>{{ edit_action(app.id, app.jd_url) }}</td>
+      </tr>
+      {% endif %}
+      {% else %}
+      <tr>
+        <td colspan="{% if mode == 'followups' %}9{% else %}10{% endif %}" class="empty-cell">
+          {% if mode == "followups" %}No follow-ups are due.{% else %}No applications found.{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}

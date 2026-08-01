@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}{% if mode == "edit" %}Edit{% else %}Add{% endif %} Application - Job Tracker{% endblock %}
+{% block body_attrs %}{% if duplicate_last_url %} data-duplicate-last-url="{{ duplicate_last_url }}"{% endif %}{% endblock %}
+{% block content %}
+{{ ui.page_header("Edit Application" if mode == "edit" else "Add Application", None, None, None, "Back to List", "/applications") }}
+
+{% if errors %}
+<div class="alert alert-danger py-2">
+  <ul class="mb-0">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if duplicate_warning %}
+<div class="alert alert-warning py-2">
+  A possible duplicate exists: <strong>{{ duplicate_warning.company }}</strong> — {{ duplicate_warning.role_title }}
+  (<a href="/applications/{{ duplicate_warning.id }}">view application</a>).
+  Submit again to save anyway.
+</div>
+{% endif %}
+
+{% if mode == "new" and latest_application and not duplicate_from %}
+<div class="alert alert-light border py-2 mb-3">
+  Applying on the same portal again?
+  <form method="post" action="{{ duplicate_last_url }}" class="d-inline">
+    <button class="btn btn-link p-0 align-baseline" type="submit">Duplicate from {{ latest_application.company }} — {{ latest_application.role_title }}</button>
+  </form>
+  <span class="text-muted">·</span>
+  <span class="kbd-hint"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>D</kbd></span>
+</div>
+{% elif duplicate_last_url %}
+<div class="alert alert-light border py-2 mb-3">
+  <form method="post" action="{{ duplicate_last_url }}" class="d-inline">
+    <button class="btn btn-link p-0 align-baseline" type="submit">Duplicate last application</button>
+  </form>
+  <span class="text-muted">·</span>
+  <span class="kbd-hint"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>D</kbd></span>
+</div>
+{% endif %}
+{% if duplicate_from %}
+<div class="alert alert-info py-2 mb-3">
+  Profile copied from <strong>{{ duplicate_from.company }}</strong> — {{ duplicate_from.role_title }}.
+  Enter the new company and job posting URL below; the rest stays the same.
+</div>
+{% endif %}
+
+<form method="post" action="{% if mode == 'edit' %}/applications/{{ application.id }}/edit{% else %}/applications/new{% endif %}" class="panel application-form">
+  <section class="form-section">
+    <h2 class="form-section-title">Application</h2>
+    <p class="form-section-hint">What you are applying for right now.</p>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="company">Company</label>
+        <input class="form-control form-control-lg" id="company" name="company" value="{{ application.company or '' }}" required autofocus>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="role_title">Role title</label>
+        <input class="form-control form-control-lg" id="role_title" name="role_title" value="{{ application.role_title or '' }}" required>
+      </div>
+      <div class="col-md-8">
+        <label class="form-label" for="jd_url">Job posting URL</label>
+        <input class="form-control" id="jd_url" name="jd_url" type="url" value="{{ application.jd_url or '' }}" placeholder="https://...">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="status">Status</label>
+        <select class="form-select color-coded-select" id="status" name="status" data-color-kind="status">
+          {% for item in statuses %}{{ ui.coded_option("status", item, (application.status or 'applied') == item) }}{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="applied_date">Applied</label>
+        <input class="form-control" id="applied_date" name="applied_date" type="date" value="{{ application.applied_date or today }}">
+      </div>
+    </div>
+  </section>
+
+  <section class="form-section">
+    <h2 class="form-section-title">Profile defaults</h2>
+    <p class="form-section-hint">Portal, location, and resume — reuse these when you duplicate an application.</p>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="source">Source</label>
+        <select class="form-select color-coded-select" id="source" name="source" data-color-kind="source">
+          {% for item in sources %}{{ ui.coded_option("source", item, (application.source or 'other') == item) }}{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="work_mode">Work mode</label>
+        <select class="form-select color-coded-select" id="work_mode" name="work_mode" data-color-kind="mode">
+          {% for item in work_modes %}{{ ui.coded_option("mode", item, (application.work_mode or 'unknown') == item) }}{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="location">Location</label>
+        <input class="form-control" id="location" name="location" value="{{ application.location or '' }}" placeholder="e.g. Remote, Bangalore">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="resume_version">Resume used</label>
+        {% if resume_names %}
+        <input class="form-control" id="resume_version" name="resume_version" list="resume-options" value="{{ application.resume_version or '' }}" placeholder="Pick or type a resume name">
+        <datalist id="resume-options">
+          {% for name in resume_names %}<option value="{{ name }}">{% endfor %}
+        </datalist>
+        <div class="form-text"><a href="/resumes">Manage resume names</a></div>
+        {% else %}
+        <input class="form-control" id="resume_version" name="resume_version" value="{{ application.resume_version or '' }}" placeholder="e.g. backend-2026">
+        <div class="form-text"><a href="/resumes">Add resume names</a> for quick pick-list.</div>
+        {% endif %}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="follow_up_date">Follow-up date</label>
+        <input class="form-control" id="follow_up_date" name="follow_up_date" type="date" value="{{ application.follow_up_date or '' }}">
+      </div>
+    </div>
+  </section>
+
+  <details class="form-more">
+    <summary>Salary and notes</summary>
+    <div class="row g-3 mt-1">
+      <div class="col-md-3">
+        <label class="form-label" for="salary_min">Salary min</label>
+        <input class="form-control" id="salary_min" name="salary_min" inputmode="decimal" value="{{ application.salary_min or '' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="salary_max">Salary max</label>
+        <input class="form-control" id="salary_max" name="salary_max" inputmode="decimal" value="{{ application.salary_max or '' }}">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="notes">Notes</label>
+        <textarea class="form-control" id="notes" name="notes" rows="4" placeholder="Portal login, recruiter name, referral, etc.">{{ application.notes or '' }}</textarea>
+      </div>
+    </div>
+  </details>
+
+  {% if duplicate_warning %}
+  <input type="hidden" name="duplicate_confirmed" value="1">
+  {% endif %}
+
+  <div class="form-actions">
+  {% if mode == "edit" %}
+    <button class="btn btn-outline-secondary" type="submit" formmethod="post" formaction="/applications/{{ application.id }}/duplicate" formnovalidate>Duplicate as new</button>
+  {% endif %}
+    <button class="btn btn-primary" type="submit">Save application</button>
+    <a class="btn btn-outline-secondary" href="/applications">Cancel</a>
+  </div>
+</form>
+{% endblock %}

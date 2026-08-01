@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Resumes - Job Tracker{% endblock %}
+{% block content %}
+{{ ui.page_header("Resume names", "Reference labels for which resume you submitted — not file storage.", None, None, "Back to Applications", "/applications") }}
+
+{% if errors %}
+<div class="alert alert-danger py-2">
+  <ul class="mb-0">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<section class="panel mb-3">
+  <h2 class="form-section-title">Add resume name</h2>
+  <p class="form-section-hint">Use short labels you will recognize later, e.g. <code>backend-2026</code> or <code>staff-fullstack</code>.</p>
+  <form method="post" action="/resumes/new" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label" for="name">Name</label>
+      <input class="form-control" id="name" name="name" value="{{ draft.get('name', '') if draft else '' }}" required>
+    </div>
+    <div class="col-md-5">
+      <label class="form-label" for="notes">Notes (optional)</label>
+      <input class="form-control" id="notes" name="notes" value="{{ draft.get('notes', '') if draft else '' }}" placeholder="e.g. emphasizes Go + platform work">
+    </div>
+    <div class="col-md-2">
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="is_default" name="is_default" value="1" {% if draft and draft.get('is_default') %}checked{% endif %}>
+        <label class="form-check-label" for="is_default">Default</label>
+      </div>
+    </div>
+    <div class="col-md-1">
+      <button class="btn btn-primary w-100" type="submit">Add</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2 class="form-section-title">Saved names</h2>
+  {% if resumes %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Notes</th>
+          <th class="text-end">Used in</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for resume in resumes %}
+        <tr>
+          <td>
+            <strong>{{ resume.name }}</strong>
+            {% if resume.is_default %}<span class="badge text-bg-secondary ms-1">default</span>{% endif %}
+          </td>
+          <td class="muted-cell">{{ resume.notes or "" }}</td>
+          <td class="text-end">{{ resume.usage_count }}</td>
+          <td class="text-end text-nowrap">
+            <form method="post" action="/resumes/{{ resume.id }}/delete" class="d-inline" onsubmit="return confirm('Delete {{ resume.name }}?');">
+              <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted mb-0">No resume names yet. Add one above — they appear as suggestions on the application form.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Applications - Job Tracker{% endblock %}
+{% block body_attrs %}{% if duplicate_last_url %} data-duplicate-last-url="{{ duplicate_last_url }}"{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header applications-page-header">
+  <div>
+    <h1>Applications</h1>
+    {% if duplicate_last_url %}<div class="page-subtitle">⌘⇧D duplicate last</div>{% endif %}
+  </div>
+  <div class="page-actions applications-page-actions">
+<details class="header-tool">
+  <summary>Search &amp; filters</summary>
+<form class="filters header-tool-panel" method="get" action="/applications">
+  <div class="filter-grid">
+  <div class="filter-search">
+    <label class="visually-hidden" for="application-search">Search applications</label>
+    <input class="form-control" id="application-search" name="q" value="{{ filters.q }}" placeholder="Search company, role, or location">
+  </div>
+  <div>
+    <label class="visually-hidden" for="application-status">Status</label>
+    <select class="form-select color-coded-select" id="application-status" name="status" data-color-kind="status">
+      <option value="">All statuses</option>
+      {% for item in statuses %}{{ ui.coded_option("status", item, filters.status == item) }}{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="visually-hidden" for="application-source">Source</label>
+    <select class="form-select color-coded-select" id="application-source" name="source" data-color-kind="source">
+      <option value="">All sources</option>
+      {% for item in sources %}{{ ui.coded_option("source", item, filters.source == item) }}{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="visually-hidden" for="application-work-mode">Work mode</label>
+    <select class="form-select color-coded-select" id="application-work-mode" name="work_mode" data-color-kind="mode">
+      <option value="">All work modes</option>
+      {% for item in work_modes %}{{ ui.coded_option("mode", item, filters.work_mode == item) }}{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="visually-hidden" for="application-sort">Sort applications</label>
+    <select class="form-select" id="application-sort" name="sort">
+      <option value="applied_status_updated" {% if filters.sort == "applied_status_updated" %}selected{% endif %}>Latest applied / status / oldest updated</option>
+      <option value="updated_desc" {% if filters.sort == "updated_desc" %}selected{% endif %}>Recently updated</option>
+      <option value="applied_desc" {% if filters.sort == "applied_desc" %}selected{% endif %}>Recently applied</option>
+      <option value="company_asc" {% if filters.sort == "company_asc" %}selected{% endif %}>Company A-Z</option>
+      <option value="location_asc" {% if filters.sort == "location_asc" %}selected{% endif %}>Location A-Z</option>
+      <option value="status_asc" {% if filters.sort == "status_asc" %}selected{% endif %}>Status</option>
+    </select>
+  </div>
+  <div class="filter-actions">
+    <button class="btn btn-sm btn-secondary" type="submit">Apply</button>
+    <a class="btn btn-outline-secondary" href="/applications">Clear</a>
+  </div>
+  </div>
+</form>
+</details>
+
+<details id="bulk-edit-panel" class="header-tool">
+  <summary>Bulk edit</summary>
+<form id="bulk-update-form" class="bulk-edit-bar header-tool-panel" method="post" action="/applications/bulk-update">
+  <span class="bulk-edit-label">Update selected applications</span>
+  <select class="form-select form-select-sm color-coded-select" name="status" aria-label="Bulk status" data-color-kind="status">
+    <option value="">Keep status</option>
+    {% for item in statuses %}{{ ui.coded_option("status", item) }}{% endfor %}
+  </select>
+  <select class="form-select form-select-sm color-coded-select" name="source" aria-label="Bulk source" data-color-kind="source">
+    <option value="">Keep source</option>
+    {% for item in sources %}{{ ui.coded_option("source", item) }}{% endfor %}
+  </select>
+  <select class="form-select form-select-sm color-coded-select" name="work_mode" aria-label="Bulk work mode" data-color-kind="mode">
+    <option value="">Keep work mode</option>
+    {% for item in work_modes %}{{ ui.coded_option("mode", item) }}{% endfor %}
+  </select>
+  <button class="btn btn-sm btn-secondary" type="submit">Update selected</button>
+  <button class="btn btn-sm btn-link" id="bulk-mode-cancel" type="button">Close</button>
+</form>
+</details>
+<a class="btn btn-sm btn-primary" href="/applications/new">Add Application</a>
+  </div>
+</div>
+
+{{ ui.applications_table(applications) }}
+{% endblock %}
