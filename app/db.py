@@ -1,13 +1,14 @@
 import os
 import sqlite3
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
 DEFAULT_DATABASE_PATH = "./db/job_tracker.db"
 # Increment when the base schema changes in a way that requires migration.
 SCHEMA_VERSION = "1"
+IST = timezone(timedelta(hours=5, minutes=30))
 
 
 def database_path() -> str:
@@ -46,7 +47,7 @@ def _ensure_metadata(conn: sqlite3.Connection) -> None:
     if row is None:
         conn.execute(
             "INSERT INTO app_metadata (key, value, updated_at) VALUES (?, ?, ?)",
-            ("schema_version", SCHEMA_VERSION, datetime.now(timezone.utc).isoformat()),
+            ("schema_version", SCHEMA_VERSION, datetime.now(IST).isoformat()),
         )
         conn.commit()
     elif row[0] != SCHEMA_VERSION:

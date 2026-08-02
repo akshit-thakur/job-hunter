@@ -7,6 +7,7 @@ from app.models import APPLICATION_FIELDS, SOURCES, STATUSES, WORK_MODES
 from app.queries import (
     create_application,
     create_duplicate_application,
+    delete_application,
     bulk_update_application_fields,
     default_resume_name,
     duplicate_application_template,
@@ -164,6 +165,15 @@ def create_from_duplicate_route(application_id: int):
     if duplicated_id is None:
         raise HTTPException(status_code=404, detail="Application not found")
     return RedirectResponse(url=f"/applications/{duplicated_id}/edit", status_code=303)
+
+
+@router.post("/applications/{application_id}/delete")
+def delete_application_route(application_id: int):
+    application = get_application(application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    delete_application(application_id)
+    return RedirectResponse(url="/applications", status_code=303)
 
 
 @router.post("/applications/new")

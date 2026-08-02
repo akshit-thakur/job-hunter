@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 
 # Ordered list of (name, sql). Names must sort in application order.
@@ -89,7 +92,7 @@ def _apply_migration(conn: sqlite3.Connection, name: str, sql: str) -> None:
         conn.execute(sql.strip())
         conn.execute(
             "INSERT INTO migrations (name, applied_at) VALUES (?, ?)",
-            (name, datetime.now(timezone.utc).isoformat()),
+            (name, datetime.now(IST).isoformat()),
         )
         conn.commit()
     except Exception as exc:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import closing
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from app.config import weekly_target as _weekly_target
@@ -9,8 +9,11 @@ from app.db import get_connection
 from app.models import APPLICATION_FIELDS, CLOSED_STATUSES, SOURCES, STATUSES, WORK_MODES
 
 
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def ist_now_iso() -> str:
+    return datetime.now(IST).replace(microsecond=0).isoformat()
 
 
 def week_bounds(today: date) -> tuple[date, date]:
@@ -92,7 +95,7 @@ def normalize_application_form(form: dict[str, Any]) -> tuple[dict[str, Any], li
 
 
 def create_application(data: dict[str, Any]) -> int:
-    now = utc_now_iso()
+    now = ist_now_iso()
     values = {**data, "created_at": now, "updated_at": now}
     columns = [field for field in APPLICATION_FIELDS if field != "id"]
     placeholders = ", ".join("?" for _ in columns)
@@ -114,7 +117,7 @@ def update_application(application_id: int, data: dict[str, Any]) -> None:
         raise ValueError(
             f"Unsupported application fields: {', '.join(sorted(unexpected_columns))}."
         )
-    values = {**data, "updated_at": utc_now_iso()}
+    values = {**data, "updated_at": ist_now_iso()}
     columns = [field for field in values.keys() if field != "created_at"]
     assignments = ", ".join(f"{column} = ?" for column in columns)
     with closing(get_connection()) as conn:
@@ -122,6 +125,17 @@ def update_application(application_id: int, data: dict[str, Any]) -> None:
             f"update applications set {assignments} where id = ?",
             [values[column] for column in columns] + [application_id],
         )
+        try:
+            ensure_one_row(cursor, "Application", application_id)
+        except ValueError:
+            conn.rollback()
+            raise
+        conn.commit()
+
+
+def delete_application(application_id: int) -> None:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("delete from applications where id = ?", (application_id,))
         try:
             ensure_one_row(cursor, "Application", application_id)
         except ValueError:
@@ -166,7 +180,7 @@ def bulk_update_application_fields(application_ids: list[int], data: dict[str, s
         for application_id in ids:
             cursor = conn.execute(
                 f"update applications set {assignments}, updated_at = ? where id = ?",
-                [*values, utc_now_iso(), application_id],
+                [*values, ist_now_iso(), application_id],
             )
             ensure_one_row(cursor, "Application", application_id)
         conn.commit()
@@ -466,7 +480,7 @@ def normalize_resume_form(form: dict[str, Any]) -> tuple[dict[str, Any], list[st
 
 
 def create_resume(data: dict[str, Any]) -> int:
-    now = utc_now_iso()
+    now = ist_now_iso()
     with closing(get_connection()) as conn:
         if data["is_default"]:
             conn.execute("update resumes set is_default = 0")
@@ -482,7 +496,7 @@ def create_resume(data: dict[str, Any]) -> int:
 
 
 def update_resume(resume_id: int, data: dict[str, Any]) -> None:
-    now = utc_now_iso()
+    now = ist_now_iso()
     with closing(get_connection()) as conn:
         if data["is_default"]:
             conn.execute("update resumes set is_default = 0")

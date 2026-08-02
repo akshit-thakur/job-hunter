@@ -141,6 +141,17 @@ def test_application_list_uses_row_view_trigger(client, tmp_db):
     assert resp.status_code == 200
     assert f'data-view-url="/applications/{app_id}"' in resp.text
     assert f'href="/applications/{app_id}"><' not in resp.text
+    assert f'action="/applications/{app_id}/delete"' in resp.text
+
+
+def test_application_delete_route_removes_row(client, tmp_db):
+    app_id = create_application(_app_data(company="DeleteCo", role_title="Delete Engineer"))
+    resp = client.post(f"/applications/{app_id}/delete")
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/applications"
+
+    detail = client.get(f"/applications/{app_id}")
+    assert detail.status_code == 404
 
 
 def test_application_detail_missing_returns_404(client):

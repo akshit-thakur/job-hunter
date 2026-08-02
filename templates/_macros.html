@@ -41,6 +41,9 @@
   <button class="btn btn-sm btn-outline-secondary action-button" type="submit">Duplicate</button>
 </form>
 <a class="btn btn-sm btn-outline-secondary action-button" href="/applications/{{ application_id }}/edit">Edit</a>
+<form method="post" action="/applications/{{ application_id }}/delete" class="d-inline" onsubmit="return confirm('Delete this application?');">
+  <button class="btn btn-sm btn-outline-danger action-button" type="submit">Delete</button>
+</form>
 {% endmacro %}
 
 {% macro applications_table(applications, mode="list") %}
