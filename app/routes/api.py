@@ -23,6 +23,11 @@ class ApplicationCreateRequest(BaseModel):
     url: str | None = None
     status: str = "applied"
     notes: str | None = None
+    source: str | None = None
+    work_mode: str | None = None
+    location: str | None = None
+    resume_version: str | None = None
+    follow_up_date: str | None = None
 
     @field_validator("company", "role", mode="before")
     @classmethod
@@ -31,7 +36,16 @@ class ApplicationCreateRequest(BaseModel):
             return value.strip()
         return value
 
-    @field_validator("url", "notes", mode="before")
+    @field_validator(
+        "url",
+        "notes",
+        "source",
+        "work_mode",
+        "location",
+        "resume_version",
+        "follow_up_date",
+        mode="before",
+    )
     @classmethod
     def strip_optional(cls, value: Any) -> Any:
         if isinstance(value, str):
@@ -56,6 +70,11 @@ class ApplicationCreateResponse(BaseModel):
     url: str | None
     status: str
     notes: str | None
+    source: str
+    work_mode: str
+    location: str | None
+    resume_version: str | None
+    follow_up_date: str | None
 
 
 class StatsResponse(BaseModel):
@@ -84,14 +103,14 @@ def post_application(body: ApplicationCreateRequest) -> ApplicationCreateRespons
         "jd_url": body.url,
         "status": body.status,
         "notes": body.notes,
-        "work_mode": "unknown",
-        "source": "other",
-        "location": None,
+        "work_mode": body.work_mode or "unknown",
+        "source": body.source or "other",
+        "location": body.location,
         "salary_min": None,
         "salary_max": None,
-        "resume_version": None,
+        "resume_version": body.resume_version,
         "applied_date": date.today().isoformat() if body.status != "saved" else None,
-        "follow_up_date": None,
+        "follow_up_date": body.follow_up_date,
     }
     data, errors = normalize_application_form(form)
     if errors:
@@ -105,4 +124,9 @@ def post_application(body: ApplicationCreateRequest) -> ApplicationCreateRespons
         url=data["jd_url"],
         status=data["status"],
         notes=data["notes"],
+        source=data["source"],
+        work_mode=data["work_mode"],
+        location=data["location"],
+        resume_version=data["resume_version"],
+        follow_up_date=data["follow_up_date"],
     )

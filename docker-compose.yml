@@ -1,6 +1,7 @@
 services:
   job-tracker:
     build: .
+    restart: unless-stopped
     ports:
       # Host-only bind so native and browser quick-add clients can reach the
       # API at http://127.0.0.1:${PORT:-9000}.
@@ -8,6 +9,10 @@ services:
     environment:
       - WEEKLY_TARGET=${WEEKLY_TARGET:-25}
       - DATABASE_PATH=/data/job_tracker.db
+      - HOST=0.0.0.0
+      - PORT=9000
+      - JOB_TRACKER_SKIP_VENV=1
+    command: ["./start.sh"]
     volumes:
       # Bind-mount so SQLite persists on the host at ./db/job_tracker.db
       # (same path convention as bare-metal ./start.sh).

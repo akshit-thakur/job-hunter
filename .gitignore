@@ -26,6 +26,7 @@ htmlcov/
 db/*.db
 db/*.db-shm
 db/*.db-wal
+logs/
 
 # OS
 .DS_Store

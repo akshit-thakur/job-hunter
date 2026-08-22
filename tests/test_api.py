@@ -73,6 +73,8 @@ def test_post_application_creates_row(client):
     assert body["url"] == "https://example.com/jobs/1"
     assert body["status"] == "applied"
     assert body["notes"] == "From menu bar"
+    assert body["source"] == "company_site"
+    assert body["work_mode"] == "unknown"
 
     stats = client.get("/stats").json()
     assert stats["applied"] == 1
@@ -106,7 +108,35 @@ def test_post_application_trims_compact_form_values(client):
         "url": "https://example.com/job",
         "status": "applied",
         "notes": "Follow up Friday",
+        "source": "company_site",
+        "work_mode": "unknown",
+        "location": None,
+        "resume_version": None,
+        "follow_up_date": None,
     }
+
+
+def test_post_application_accepts_structured_quick_add_fields(client):
+    resp = client.post(
+        "/applications",
+        json={
+            "company": "StructuredCo",
+            "role": "Backend",
+            "url": "https://jobs.lever.co/structured/1",
+            "source": "linkedin",
+            "work_mode": "remote",
+            "location": "Remote",
+            "resume_version": "backend-2026",
+            "follow_up_date": "2026-08-20",
+        },
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["source"] == "linkedin"
+    assert body["work_mode"] == "remote"
+    assert body["location"] == "Remote"
+    assert body["resume_version"] == "backend-2026"
+    assert body["follow_up_date"] == "2026-08-20"
 
 
 def test_post_application_validation_error(client):

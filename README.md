@@ -37,13 +37,40 @@ The app binds to `127.0.0.1`, so it is reachable only from this machine. There i
 
 ## Run with Docker
 
-Alternatively, run it in a container. This still only binds to `127.0.0.1` on the host, so it's reachable only from this machine — same security posture as the bare-metal setup.
+Run the backend in a container for normal use. This binds only to `127.0.0.1` on the host, so it's reachable only from this machine — same security posture as the bare-metal setup.
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
-Open http://localhost:9000. The SQLite database persists in `./db/job_tracker.db` across restarts. Docker uses the same `./start.sh` entry point as local runs, with container-specific environment values so Uvicorn binds correctly inside the container. The image also includes the Zen extension source and serves its ZIP package. Override the port by setting `PORT` before running compose, or by editing the port mapping in `docker-compose.yml`.
+Open http://localhost:9000. The SQLite database persists in `./db/job_tracker.db` across restarts. Docker Compose runs `./start.sh` inside the container, with container-specific environment values so Uvicorn binds correctly inside Docker. The Compose service uses `restart: unless-stopped`, so the backend keeps running without a terminal window. The image also includes the Zen extension source and serves its ZIP package. Override the port by setting `PORT` before running compose, or by editing the port mapping in `docker-compose.yml`.
+
+For development, `./start.sh` still runs the app directly on the host.
+
+## Run at Login on macOS
+
+Install the menu-bar app once:
+
+```bash
+./macos/JobHunterBar/install.sh
+```
+
+Then install the per-user LaunchAgents:
+
+```bash
+./macos/launchd/install.sh
+```
+
+This is the macOS launchd equivalent of a user-level systemd setup:
+
+- `local.job-hunter.backend` runs `docker compose up -d` through `macos/launchd/start-backend.sh`.
+- `local.job-hunter.menubar` runs `/Applications/JobHunterBar.app/Contents/MacOS/JobHunterBar` and keeps it alive.
+
+Uninstall the LaunchAgents with:
+
+```bash
+./macos/launchd/install.sh --uninstall
+```
 
 ## Environment Variables
 
@@ -69,6 +96,31 @@ job_applications_YYYYMMDD.csv
 
 Rows are ordered by `updated_at` descending (most recently modified first), with `id` descending as the tiebreaker. CSV ordering is independent of the current list filters and sort.
 
+## Import / Sync
+
+Use **Applications → Import** to bulk import or sync rows from CSV or JSON.
+
+The CSV importer accepts the app's own export and simpler external CSVs. It updates an existing application by `id` when present; otherwise it matches by `company + role_title`. Rows with no match are created.
+
+Recognized columns include:
+
+```text
+company, role_title, role, location, work_mode, mode, source, jd_url, url,
+salary_min, salary_max, status, resume_version, resume, applied_date,
+follow_up_date, notes
+```
+
+When `source` is omitted or set to `other`, the importer infers it from the job URL using the same static host dictionary as quick-add.
+
+JSON import accepts either one object or an array of objects. It supports scraper-shaped fields such as:
+
+```text
+job_id, title, company, location, work_type, status, timestamp, applied_date,
+job_url, scraped_at
+```
+
+For LinkedIn-style applied-job records, explicit `applied_date` values or `timestamp` values like `Applied 3mo ago` are treated as an application signal, while the original listing status is preserved in notes. `work_type` values such as `Remote` map to work mode. Concatenated titles such as `AI Data EngineerMultiBank Group` are split into role and company when a recognizable company suffix is present.
+
 ## Smoke Test
 
 Verifies that a running instance responds correctly on the health endpoint and root path.
@@ -92,14 +144,14 @@ Exit 0 means all checks passed. Non-zero means at least one check failed — the
 The same process also serves a small JSON API for the native and browser quick-add clients:
 
 - `GET /stats` → `{ applied, interviewing, active, total, submitted_this_week, weekly_target, followups_due }`
-- `POST /applications` → body `{ company, role, url?, status?, notes? }` creates a row (defaults `status` to `applied`)
+- `POST /applications` → body `{ company, role, url?, status?, notes?, source?, work_mode?, location?, resume_version?, follow_up_date? }` creates a row (defaults `status` to `applied`)
 
 Required and optional text values are trimmed by the API before they are stored.
-The final two stats fields remain for compatibility with already-installed menu-bar clients.
+If `source` is omitted or `other`, the API infers a source from common job posting hosts such as LinkedIn, Indeed, Naukri, Greenhouse, Lever, Ashby, and Workday.
 
 ## Zen / Firefox extension
 
-The extension is a manual compact form. It does not read the current tab, inject content scripts, or prefill fields.
+The extension is a compact quick-add form. It reads the active tab URL and title when opened, prefills draft fields, and sends structured quick-add fields to the local API. It does not inject content scripts or scrape page content.
 
 With the tracker running, download the package from:
 
@@ -127,6 +179,8 @@ Open `macos/JobHunterBar/JobHunterBar.xcodeproj` in Xcode to develop, or install
 ```
 
 It talks to `http://127.0.0.1:9000`. Keep the API up with `docker compose up -d`; the container runs through `./start.sh`, so the native client, extension, and Docker paths share one backend.
+
+The menu-bar form can use the active browser tab for autofill. Safari and common Chromium-family browsers expose tab URL/title through macOS Automation; macOS may ask for permission the first time. The URL is sent to the backend, which infers the application source from common job-board and ATS domains.
 
 ## Scope Boundaries
 

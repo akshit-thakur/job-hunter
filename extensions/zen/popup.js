@@ -9,6 +9,7 @@ const companyInput = document.getElementById("company");
 const connection = document.getElementById("connection");
 const stats = document.getElementById("stats");
 const message = document.getElementById("message");
+const extensionApi = typeof browser !== "undefined" ? browser : chrome;
 
 function clean(value) {
   return value.trim();
@@ -75,6 +76,44 @@ async function refreshStats() {
   }
 }
 
+function draftFromTitle(title) {
+  if (!title) {
+    return {};
+  }
+  const separators = [" | ", " - ", " at ", " @ "];
+  for (const separator of separators) {
+    if (title.includes(separator)) {
+      const parts = title.split(separator).map(clean).filter(Boolean);
+      if (parts.length >= 2) {
+        return {role: parts[0], company: parts[parts.length - 1]};
+      }
+    }
+  }
+  return {role: title};
+}
+
+async function prefillFromActiveTab() {
+  try {
+    const tabs = await extensionApi.tabs.query({active: true, currentWindow: true});
+    const tab = tabs && tabs[0];
+    if (!tab) {
+      return;
+    }
+    if (tab.url && !form.elements.url.value) {
+      form.elements.url.value = tab.url;
+    }
+    const draft = draftFromTitle(tab.title || "");
+    if (draft.company && !form.elements.company.value) {
+      form.elements.company.value = draft.company;
+    }
+    if (draft.role && !form.elements.role.value) {
+      form.elements.role.value = draft.role;
+    }
+  } catch (_error) {
+    // Active-tab capture is a convenience; manual entry remains available.
+  }
+}
+
 form.addEventListener("submit", async function (event) {
   event.preventDefault();
   if (!form.reportValidity()) {
@@ -85,6 +124,9 @@ form.addEventListener("submit", async function (event) {
     company: clean(form.elements.company.value),
     role: clean(form.elements.role.value),
     url: clean(form.elements.url.value) || null,
+    source: clean(form.elements.source.value) || null,
+    work_mode: clean(form.elements.work_mode.value) || null,
+    follow_up_date: clean(form.elements.follow_up_date.value) || null,
     notes: clean(form.elements.notes.value) || null,
     status: "applied"
   };
@@ -117,4 +159,5 @@ form.addEventListener("submit", async function (event) {
   }
 });
 
+prefillFromActiveTab();
 refreshStats();

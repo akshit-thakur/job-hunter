@@ -24,9 +24,11 @@ def test_zen_extension_package(client):
         "http://127.0.0.1:9000/*",
         "http://localhost:9000/*",
     ]
+    assert manifest["permissions"] == ["activeTab", "tabs"]
     assert "content_scripts" not in manifest
-    assert "tabs" not in manifest.get("permissions", [])
+    assert "tabs" in manifest.get("permissions", [])
     assert 'fetchJson("/applications"' in popup
+    assert "prefillFromActiveTab" in popup
 
 
 def test_docker_image_includes_extension_source():

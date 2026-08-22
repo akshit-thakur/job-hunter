@@ -74,7 +74,13 @@
         <td>{{ source_badge(app.source) }}</td>
         <td>{{ app.resume_version or "" }}</td>
         <td class="notes-cell">{{ app.notes or "" }}</td>
-        <td class="text-end action-column" data-row-actions>{{ edit_action(app.id, app.jd_url) }}</td>
+        <td class="text-end action-column" data-row-actions>
+          <form method="post" action="/applications/{{ app.id }}/events" class="d-inline">
+            <input type="hidden" name="event_type" value="follow_up_sent">
+            <button class="btn btn-sm btn-outline-primary action-button" type="submit">Followed up</button>
+          </form>
+          {{ edit_action(app.id, app.jd_url) }}
+        </td>
       </tr>
       {% else %}
       <tr class="application-row{% if app.status in inactive_statuses %} application-row-muted{% endif %}" data-view-url="/applications/{{ app.id }}" tabindex="0" aria-label="View {{ app.company }} - {{ app.role_title }}">

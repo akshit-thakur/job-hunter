@@ -671,6 +671,74 @@ body.bulk-mode .application-row {
   margin-bottom: 4px;
 }
 
+.application-activity {
+  margin-top: 16px;
+}
+
+.quick-event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.activity-form {
+  border-top: 1px solid #e7edf3;
+  padding-top: 12px;
+}
+
+.activity-timeline {
+  border-top: 1px solid #e7edf3;
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.activity-item {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 10px 1fr;
+  padding: 0 0 14px;
+}
+
+.activity-marker {
+  background: #0f6c81;
+  border-radius: 999px;
+  height: 8px;
+  margin-top: 7px;
+  width: 8px;
+}
+
+.activity-heading {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.activity-heading span {
+  color: #34475b;
+  font-weight: 600;
+}
+
+.activity-heading time,
+.activity-meta {
+  color: #687787;
+  font-size: 12px;
+}
+
+.activity-note {
+  color: #34475b;
+  margin-top: 4px;
+  white-space: pre-wrap;
+}
+
+.import-panel {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: min(360px, calc(100vw - 32px));
+}
+
 .login-page {
   align-items: center;
   display: flex;

@@ -1,15 +1,75 @@
 from __future__ import annotations
 
+import json
+import csv
+import re
 from contextlib import closing
 from datetime import date, datetime, timedelta, timezone
+from io import StringIO
 from typing import Any
+from urllib.parse import urlparse
 
 from app.config import weekly_target as _weekly_target
 from app.db import get_connection
-from app.models import APPLICATION_FIELDS, CLOSED_STATUSES, SOURCES, STATUSES, WORK_MODES
+from app.models import (
+    APPLICATION_EVENT_TYPES,
+    APPLICATION_FIELDS,
+    CLOSED_STATUSES,
+    SOURCES,
+    STATUSES,
+    WORK_MODES,
+)
 
 
 IST = timezone(timedelta(hours=5, minutes=30))
+
+SOURCE_HOST_PATTERNS = {
+    "linkedin": ("linkedin.com",),
+    "indeed": ("indeed.com",),
+    "naukri": ("naukri.com",),
+    "job_board": (
+        "wellfound.com",
+        "angel.co",
+        "instahyre.com",
+        "cutshort.io",
+        "foundit.in",
+        "monster.com",
+        "dice.com",
+        "hired.com",
+    ),
+    "company_portal": (
+        "greenhouse.io",
+        "lever.co",
+        "ashbyhq.com",
+        "workdayjobs.com",
+        "myworkdayjobs.com",
+        "icims.com",
+        "smartrecruiters.com",
+        "bamboohr.com",
+        "workable.com",
+        "jobvite.com",
+        "successfactors.com",
+        "oraclecloud.com",
+        "taleo.net",
+        "recruitee.com",
+    ),
+}
+
+IMPORT_FIELD_ALIASES = {
+    "title": "role_title",
+    "role": "role_title",
+    "url": "jd_url",
+    "job_url": "jd_url",
+    "job_posting_url": "jd_url",
+    "mode": "work_mode",
+    "resume": "resume_version",
+    "resume_used": "resume_version",
+    "followup_date": "follow_up_date",
+}
+
+COMPANY_SUFFIX_PATTERN = re.compile(
+    r"^(.+?[a-z0-9])([A-Z][A-Za-z0-9&.,' -]*(?:Group|Inc|LLC|Ltd|Limited|Corporation|Corp|Company|Technologies|Systems|Solutions|Bank)\b.*)$"
+)
 
 
 def ist_now_iso() -> str:
@@ -31,6 +91,46 @@ def clean_text(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def clean_import_text(value: Any) -> str | None:
+    text = clean_text(value)
+    if text and text.startswith("\t"):
+        text = text[1:]
+    return text or None
+
+
+def split_import_title(title: str | None) -> tuple[str | None, str | None]:
+    text = clean_import_text(title)
+    if not text:
+        return None, None
+    for separator in (" | ", " - ", " at ", " @ "):
+        if separator in text:
+            parts = [part.strip() for part in text.split(separator) if part.strip()]
+            if len(parts) >= 2:
+                return parts[0], parts[-1]
+    match = COMPANY_SUFFIX_PATTERN.match(text)
+    if match:
+        return match.group(1).strip(), match.group(2).strip()
+    return text, None
+
+
+def infer_source_from_url(url: str | None) -> str | None:
+    text = clean_text(url)
+    if not text:
+        return None
+    parsed = urlparse(text if "://" in text else f"https://{text}")
+    host = (parsed.hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    if not host:
+        return None
+    for source, patterns in SOURCE_HOST_PATTERNS.items():
+        for pattern in patterns:
+            normalized = pattern.lower()
+            if host == normalized or host.endswith(f".{normalized}"):
+                return source
+    return "company_site"
 
 
 def parse_date(value: Any, field: str, errors: list[str]) -> str | None:
@@ -58,13 +158,18 @@ def parse_float(value: Any, field: str, errors: list[str]) -> float | None:
 
 def normalize_application_form(form: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     errors: list[str] = []
+    jd_url = clean_text(form.get("jd_url"))
+    source = clean_text(form.get("source")) or "other"
+    inferred_source = infer_source_from_url(jd_url)
+    if source == "other" and inferred_source:
+        source = inferred_source
     data = {
         "company": clean_text(form.get("company")),
         "role_title": clean_text(form.get("role_title")),
         "location": clean_text(form.get("location")),
         "work_mode": clean_text(form.get("work_mode")) or "unknown",
-        "source": clean_text(form.get("source")) or "other",
-        "jd_url": clean_text(form.get("jd_url")),
+        "source": source,
+        "jd_url": jd_url,
         "salary_min": parse_float(form.get("salary_min"), "Minimum salary", errors),
         "salary_max": parse_float(form.get("salary_max"), "Maximum salary", errors),
         "status": clean_text(form.get("status")) or "saved",
@@ -94,6 +199,154 @@ def normalize_application_form(form: dict[str, Any]) -> tuple[dict[str, Any], li
     return data, errors
 
 
+def _event_label(event_type: str) -> str:
+    return event_type.replace("_", " ").title()
+
+
+def _create_application_event(
+    conn,
+    application_id: int,
+    event_type: str,
+    *,
+    note: str | None = None,
+    occurred_at: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> int:
+    if event_type not in APPLICATION_EVENT_TYPES:
+        raise ValueError("Event type is invalid.")
+    now = ist_now_iso()
+    cursor = conn.execute(
+        """
+        insert into application_events
+            (application_id, event_type, occurred_at, note, metadata_json, created_at)
+        values (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            application_id,
+            event_type,
+            occurred_at or now,
+            clean_text(note),
+            json.dumps(metadata, sort_keys=True) if metadata else None,
+            now,
+        ),
+    )
+    return int(cursor.lastrowid)
+
+
+def create_application_event(
+    application_id: int,
+    event_type: str,
+    note: str | None = None,
+    occurred_at: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> int:
+    with closing(get_connection()) as conn:
+        if not conn.execute(
+            "select 1 from applications where id = ?", (application_id,)
+        ).fetchone():
+            raise ValueError(f"Application {application_id} does not exist.")
+        event_id = _create_application_event(
+            conn,
+            application_id,
+            event_type,
+            note=note,
+            occurred_at=occurred_at,
+            metadata=metadata,
+        )
+        conn.commit()
+        return event_id
+
+
+def list_application_events(application_id: int) -> list[dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            """
+            select * from application_events
+            where application_id = ?
+            order by occurred_at desc, id desc
+            """,
+            (application_id,),
+        ).fetchall()
+    events = []
+    for row in rows:
+        event = dict(row)
+        event["label"] = _event_label(event["event_type"])
+        event["metadata"] = json.loads(event["metadata_json"]) if event["metadata_json"] else {}
+        events.append(event)
+    return events
+
+
+def _initial_event_type(data: dict[str, Any]) -> str:
+    status = data.get("status")
+    if status == "applied":
+        return "applied"
+    if status == "rejected":
+        return "rejected"
+    if status == "withdrawn":
+        return "withdrawn"
+    if status == "offer":
+        return "offer_received"
+    return "created"
+
+
+def _status_event_type(new_status: str) -> str:
+    if new_status == "rejected":
+        return "rejected"
+    if new_status == "withdrawn":
+        return "withdrawn"
+    if new_status == "offer":
+        return "offer_received"
+    return "status_changed"
+
+
+def _log_application_changes(
+    conn,
+    application_id: int,
+    existing: dict[str, Any],
+    values: dict[str, Any],
+) -> None:
+    if "status" in values and values["status"] != existing.get("status"):
+        _create_application_event(
+            conn,
+            application_id,
+            _status_event_type(values["status"]),
+            metadata={
+                "from_status": existing.get("status"),
+                "to_status": values["status"],
+            },
+        )
+    if (
+        "follow_up_date" in values
+        and values["follow_up_date"]
+        and values["follow_up_date"] != existing.get("follow_up_date")
+    ):
+        _create_application_event(
+            conn,
+            application_id,
+            "follow_up_scheduled",
+            metadata={
+                "old_follow_up_date": existing.get("follow_up_date"),
+                "new_follow_up_date": values["follow_up_date"],
+            },
+        )
+    if (
+        "resume_version" in values
+        and values["resume_version"]
+        and values["resume_version"] != existing.get("resume_version")
+    ):
+        _create_application_event(
+            conn,
+            application_id,
+            "resume_sent",
+            metadata={
+                "old_resume_version": existing.get("resume_version"),
+                "new_resume_version": values["resume_version"],
+            },
+        )
+    if "notes" in values and values["notes"] and values["notes"] != existing.get("notes"):
+        _create_application_event(conn, application_id, "note_added", note=values["notes"])
+
+
 def create_application(data: dict[str, Any]) -> int:
     now = ist_now_iso()
     values = {**data, "created_at": now, "updated_at": now}
@@ -104,8 +357,189 @@ def create_application(data: dict[str, Any]) -> int:
             f"insert into applications ({', '.join(columns)}) values ({placeholders})",
             [values.get(column) for column in columns],
         )
+        application_id = int(cursor.lastrowid)
+        _create_application_event(
+            conn,
+            application_id,
+            _initial_event_type(data),
+            note=data.get("notes"),
+            occurred_at=data.get("applied_date") or now,
+        )
         conn.commit()
-        return int(cursor.lastrowid)
+        return application_id
+
+
+def _import_row_to_form(row: dict[str, Any], existing: dict[str, Any] | None) -> dict[str, Any]:
+    form = {
+        field: existing.get(field) if existing else None
+        for field in APPLICATION_FIELDS
+        if field not in ("id", "created_at", "updated_at")
+    }
+    for key, value in row.items():
+        if key is None:
+            continue
+        normalized_key = key.strip().lower()
+        field = IMPORT_FIELD_ALIASES.get(normalized_key, normalized_key)
+        if field in form:
+            form[field] = clean_import_text(value)
+    return form
+
+
+def _normalize_json_import_status(item: dict[str, Any]) -> str | None:
+    if clean_import_text(item.get("applied_date")):
+        return "applied"
+    timestamp = clean_import_text(item.get("timestamp"))
+    raw_status = clean_import_text(item.get("status"))
+    if timestamp and timestamp.lower().startswith("applied"):
+        return "applied"
+    if not raw_status:
+        return None
+    status = raw_status.lower()
+    if "reject" in status:
+        return "rejected"
+    if "withdraw" in status:
+        return "withdrawn"
+    if "offer" in status:
+        return "offer"
+    if "interview" in status:
+        return "hr_screen"
+    if "no longer accepting" in status or "closed" in status:
+        return "closed"
+    if "applied" in status:
+        return "applied"
+    return None
+
+
+def _normalize_json_work_mode(item: dict[str, Any]) -> str | None:
+    raw_work_type = clean_import_text(item.get("work_type") or item.get("work_mode"))
+    if not raw_work_type:
+        return None
+    work_type = raw_work_type.lower()
+    for mode in WORK_MODES:
+        if mode in work_type:
+            return mode
+    return None
+
+
+def _json_item_to_import_row(item: dict[str, Any]) -> dict[str, Any]:
+    role_title, company_from_title = split_import_title(item.get("title"))
+    company = clean_import_text(item.get("company")) or company_from_title
+    job_url = clean_import_text(item.get("job_url") or item.get("url"))
+    status = _normalize_json_import_status(item)
+    note_parts = []
+    for label, key in (
+        ("Job ID", "job_id"),
+        ("Original status", "status"),
+        ("Timestamp", "timestamp"),
+        ("Scraped at", "scraped_at"),
+    ):
+        value = clean_import_text(item.get(key))
+        if value:
+            note_parts.append(f"{label}: {value}")
+    return {
+        "company": company,
+        "role_title": role_title,
+        "location": clean_import_text(item.get("location")),
+        "work_mode": _normalize_json_work_mode(item),
+        "status": status,
+        "applied_date": clean_import_text(item.get("applied_date")),
+        "jd_url": job_url,
+        "source": clean_import_text(item.get("source")) or "other",
+        "notes": "\n".join(note_parts) or None,
+    }
+
+
+def _find_import_target(conn, row: dict[str, Any]) -> dict[str, Any] | None:
+    raw_id = clean_import_text(row.get("id"))
+    if raw_id:
+        try:
+            application_id = int(raw_id)
+        except ValueError:
+            application_id = 0
+        if application_id:
+            existing = conn.execute(
+                "select * from applications where id = ?", (application_id,)
+            ).fetchone()
+            if existing:
+                return dict(existing)
+
+    company = clean_import_text(row.get("company"))
+    role = clean_import_text(row.get("role_title") or row.get("role"))
+    if company and role:
+        existing = conn.execute(
+            "select * from applications where lower(company)=lower(?) and lower(role_title)=lower(?) limit 1",
+            (company, role),
+        ).fetchone()
+        if existing:
+            return dict(existing)
+    return None
+
+
+def import_applications_csv(content: str) -> dict[str, Any]:
+    reader = csv.DictReader(StringIO(content))
+    if not reader.fieldnames:
+        raise ValueError("CSV must include a header row.")
+
+    summary = {"created": 0, "updated": 0, "skipped": 0, "errors": []}
+    with closing(get_connection()) as conn:
+        for index, row in enumerate(reader, start=2):
+            if not any(clean_import_text(value) for value in row.values()):
+                summary["skipped"] += 1
+                continue
+
+            existing = _find_import_target(conn, row)
+            form = _import_row_to_form(row, existing)
+            data, errors = normalize_application_form(form)
+            if errors:
+                summary["skipped"] += 1
+                summary["errors"].append(f"Row {index}: {' '.join(errors)}")
+                continue
+
+            if existing:
+                try:
+                    update_application(existing["id"], data)
+                except ValueError as exc:
+                    summary["skipped"] += 1
+                    summary["errors"].append(f"Row {index}: {exc}")
+                    continue
+                summary["updated"] += 1
+            else:
+                create_application(data)
+                summary["created"] += 1
+    return summary
+
+
+def import_applications_json(content: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"JSON is invalid: {exc.msg}") from exc
+    if isinstance(payload, dict):
+        items = [payload]
+    elif isinstance(payload, list):
+        items = payload
+    else:
+        raise ValueError("JSON import must be an object or an array of objects.")
+
+    output = StringIO()
+    fieldnames = [
+        "company",
+        "role_title",
+        "location",
+        "work_mode",
+        "status",
+        "applied_date",
+        "jd_url",
+        "source",
+        "notes",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"JSON item {index} must be an object.")
+        writer.writerow(_json_item_to_import_row(item))
+    return import_applications_csv(output.getvalue())
 
 
 def update_application(application_id: int, data: dict[str, Any]) -> None:
@@ -121,6 +555,11 @@ def update_application(application_id: int, data: dict[str, Any]) -> None:
     columns = [field for field in values.keys() if field != "created_at"]
     assignments = ", ".join(f"{column} = ?" for column in columns)
     with closing(get_connection()) as conn:
+        existing = conn.execute(
+            "select * from applications where id = ?", (application_id,)
+        ).fetchone()
+        if not existing:
+            raise ValueError(f"Application {application_id} does not exist.")
         cursor = conn.execute(
             f"update applications set {assignments} where id = ?",
             [values[column] for column in columns] + [application_id],
@@ -130,6 +569,7 @@ def update_application(application_id: int, data: dict[str, Any]) -> None:
         except ValueError:
             conn.rollback()
             raise
+        _log_application_changes(conn, application_id, dict(existing), values)
         conn.commit()
 
 

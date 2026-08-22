@@ -1,7 +1,7 @@
 import csv
 from io import StringIO
 
-from app.queries import create_application
+from app.queries import create_application, get_application, list_application_events
 
 
 def _app_data(**overrides):
@@ -65,6 +65,7 @@ def test_applications_list_has_location_and_sort_controls(client):
     assert b"Company A-Z" in resp.content
     assert b"Search company, role, or location" in resp.content
     assert b"Bulk edit" in resp.content
+    assert b"Import" in resp.content
     assert b"Select all applications" in resp.content
     assert b"Latest applied / status / oldest updated" in resp.content
     assert b"data-bulk-select hidden" in resp.content
@@ -73,8 +74,8 @@ def test_applications_list_has_location_and_sort_controls(client):
 def test_static_assets_are_cache_busted(client):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert b"app.css?v=20260801-5" in resp.content
-    assert b"app.js?v=20260801-5" in resp.content
+    assert b"app.css?v=20260815-1" in resp.content
+    assert b"app.js?v=20260815-1" in resp.content
 
 
 def test_application_dropdowns_render_color_codes(client):
@@ -100,6 +101,57 @@ def test_bulk_update_route_updates_selected_fields(client, tmp_db):
     )
     assert response.status_code == 303
     assert response.headers["location"] == "/applications"
+
+
+def test_import_applications_route_creates_rows(client):
+    csv_content = (
+        "company,role_title,status,jd_url,source,work_mode\n"
+        "ImportRouteCo,Engineer,applied,https://www.indeed.com/viewjob?jk=1,other,remote\n"
+    )
+    response = client.post(
+        "/applications/import",
+        files={"file": ("applications.csv", csv_content, "text/csv")},
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        "/applications?imported_created=1&imported_updated=0&imported_skipped=0"
+    )
+
+    page = client.get(response.headers["location"])
+    assert page.status_code == 200
+    assert b"Import complete" in page.content
+    assert b"ImportRouteCo" in page.content
+
+
+def test_import_applications_route_rejects_non_csv(client):
+    response = client.post(
+        "/applications/import",
+        files={"file": ("applications.txt", "company\nX\n", "text/plain")},
+    )
+    assert response.status_code == 400
+
+
+def test_import_applications_route_accepts_json(client):
+    json_content = """
+    {
+        "job_id": "4409004132",
+        "title": "AI Data EngineerMultiBank Group",
+        "company": null,
+        "location": "Bengaluru",
+        "status": "No longer accepting applications",
+        "timestamp": "Applied 3mo ago",
+        "job_url": "https://www.linkedin.com/jobs/view/4409004132/",
+        "scraped_at": "2026-08-15T22:46:35.675Z"
+    }
+    """
+    response = client.post(
+        "/applications/import",
+        files={"file": ("applications.json", json_content, "application/json")},
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        "/applications?imported_created=1&imported_updated=0&imported_skipped=0"
+    )
 
 
 def test_application_list_only_shows_view_for_job_posting(client, tmp_db):
@@ -131,8 +183,37 @@ def test_application_detail_renders_without_editing(client, tmp_db):
     assert b"DetailCo" in resp.content
     assert b"Platform Engineer" in resp.content
     assert b"Duplicate as new" in resp.content
+    assert b"Activity" in resp.content
+    assert b"Followed up" in resp.content
+    assert b"Created" in resp.content
     assert b">Open job posting<" not in resp.content
     assert b'aria-label="Open job posting"' in resp.content
+
+
+def test_application_event_route_adds_activity(client, tmp_db):
+    app_id = create_application(_app_data(company="ActivityCo", follow_up_date="2026-08-20"))
+    resp = client.post(
+        f"/applications/{app_id}/events",
+        data={"event_type": "follow_up_sent", "note": "Sent follow-up"},
+    )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == f"/applications/{app_id}"
+
+    events = list_application_events(app_id)
+    assert events[0]["event_type"] == "follow_up_sent"
+    assert events[0]["note"] == "Sent follow-up"
+    assert get_application(app_id)["follow_up_date"] is None
+
+
+def test_application_event_route_can_update_status(client, tmp_db):
+    app_id = create_application(_app_data(company="RejectCo", status="applied"))
+    resp = client.post(
+        f"/applications/{app_id}/events",
+        data={"event_type": "rejected"},
+    )
+    assert resp.status_code == 303
+    assert get_application(app_id)["status"] == "rejected"
+    assert list_application_events(app_id)[0]["event_type"] == "rejected"
 
 
 def test_application_list_uses_row_view_trigger(client, tmp_db):
@@ -162,6 +243,16 @@ def test_application_detail_missing_returns_404(client):
 def test_followups_renders(client):
     resp = client.get("/followups")
     assert resp.status_code == 200
+
+
+def test_followups_page_has_followed_up_action(client, tmp_db):
+    app_id = create_application(
+        _app_data(company="FollowCo", status="applied", follow_up_date="2020-01-01")
+    )
+    resp = client.get("/followups")
+    assert resp.status_code == 200
+    assert f'action="/applications/{app_id}/events"' in resp.text
+    assert b"Followed up" in resp.content
 
 
 def test_csv_export_headers(client):

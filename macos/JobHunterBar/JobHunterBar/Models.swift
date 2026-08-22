@@ -34,19 +34,39 @@ struct ApplicationPayload: Codable, Equatable, Sendable {
     var url: String?
     var status: String
     var notes: String?
+    var source: String?
+    var workMode: String?
+    var followUpDate: String?
 
     init(
         company: String,
         role: String,
         url: String? = nil,
         status: String = "applied",
-        notes: String? = nil
+        notes: String? = nil,
+        source: String? = nil,
+        workMode: String? = nil,
+        followUpDate: String? = nil
     ) {
         self.company = company
         self.role = role
         self.url = url
         self.status = status
         self.notes = notes
+        self.source = source
+        self.workMode = workMode
+        self.followUpDate = followUpDate
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case company
+        case role
+        case url
+        case status
+        case notes
+        case source
+        case workMode = "work_mode"
+        case followUpDate = "follow_up_date"
     }
 }
 
@@ -57,6 +77,25 @@ struct ApplicationResponse: Codable, Equatable, Sendable {
     let url: String?
     let status: String
     let notes: String?
+    let source: String
+    let workMode: String
+    let location: String?
+    let resumeVersion: String?
+    let followUpDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case company
+        case role
+        case url
+        case status
+        case notes
+        case source
+        case workMode = "work_mode"
+        case location
+        case resumeVersion = "resume_version"
+        case followUpDate = "follow_up_date"
+    }
 }
 
 enum APIError: LocalizedError, Equatable {

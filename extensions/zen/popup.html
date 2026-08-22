@@ -28,6 +28,33 @@
         <label for="url">Job posting URL</label>
         <input id="url" name="url" type="url" inputmode="url" autocomplete="url" placeholder="https://">
 
+        <label for="source">Source</label>
+        <select id="source" name="source">
+          <option value="">Auto from URL</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="company_site">Company site</option>
+          <option value="referral">Referral</option>
+          <option value="job_board">Job board</option>
+          <option value="recruiter">Recruiter</option>
+          <option value="naukri">Naukri</option>
+          <option value="indeed">Indeed</option>
+          <option value="company_portal">Company portal</option>
+          <option value="network">Network</option>
+          <option value="other">Other</option>
+        </select>
+
+        <label for="work_mode">Work mode</label>
+        <select id="work_mode" name="work_mode">
+          <option value="unknown">Unknown</option>
+          <option value="remote">Remote</option>
+          <option value="hybrid">Hybrid</option>
+          <option value="onsite">Onsite</option>
+          <option value="freelance">Freelance</option>
+        </select>
+
+        <label for="follow_up_date">Follow-up date</label>
+        <input id="follow_up_date" name="follow_up_date" type="date">
+
         <label for="notes">Notes</label>
         <textarea id="notes" name="notes" rows="3"></textarea>
 

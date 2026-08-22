@@ -1,10 +1,18 @@
 from datetime import date
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.models import APPLICATION_FIELDS, SOURCES, STATUSES, WORK_MODES
+from app.models import (
+    APPLICATION_EVENT_TYPES,
+    APPLICATION_FIELDS,
+    SOURCES,
+    STATUSES,
+    WORK_MODES,
+)
 from app.queries import (
+    create_application_event,
     create_application,
     create_duplicate_application,
     delete_application,
@@ -14,7 +22,10 @@ from app.queries import (
     duplicate_last_url,
     find_duplicate_candidate,
     get_application,
+    import_applications_csv,
+    import_applications_json,
     latest_application,
+    list_application_events,
     list_applications,
     list_resume_names,
     normalize_application_form,
@@ -81,6 +92,9 @@ def applications_list(
     source: str = "",
     work_mode: str = "",
     sort: str = "applied_status_updated",
+    imported_created: int | None = None,
+    imported_updated: int | None = None,
+    imported_skipped: int | None = None,
     ):
     applications = list_applications(
         search=q.strip() or None,
@@ -104,6 +118,17 @@ def applications_list(
             statuses=STATUSES,
             sources=SOURCES,
             work_modes=WORK_MODES,
+            import_summary=(
+                {
+                    "created": imported_created or 0,
+                    "updated": imported_updated or 0,
+                    "skipped": imported_skipped or 0,
+                }
+                if imported_created is not None
+                or imported_updated is not None
+                or imported_skipped is not None
+                else None
+            ),
         ),
     )
 
@@ -124,6 +149,34 @@ async def bulk_update_applications_route(request: Request):
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedirectResponse(url="/applications", status_code=303)
+
+
+@router.post("/applications/import")
+async def import_applications_route(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Upload a CSV or JSON file.")
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")
+        if file.filename.lower().endswith(".csv"):
+            summary = import_applications_csv(text)
+        elif file.filename.lower().endswith(".json"):
+            summary = import_applications_json(text)
+        else:
+            raise HTTPException(status_code=400, detail="Upload a CSV or JSON file.")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Import file must be UTF-8 encoded.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    params = urlencode(
+        {
+            "imported_created": summary["created"],
+            "imported_updated": summary["updated"],
+            "imported_skipped": summary["skipped"],
+        }
+    )
+    return RedirectResponse(url=f"/applications?{params}", status_code=303)
 
 
 @router.get("/applications/new", response_class=HTMLResponse)
@@ -225,8 +278,44 @@ def application_detail(request: Request, application_id: int):
     return templates.TemplateResponse(
         request,
         "application_detail.html",
-        {"application": application},
+        {
+            "application": application,
+            "events": list_application_events(application_id),
+            "event_types": APPLICATION_EVENT_TYPES,
+        },
     )
+
+
+@router.post("/applications/{application_id}/events")
+async def create_application_event_route(request: Request, application_id: int):
+    application = get_application(application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    form = await request.form()
+    event_type = str(form.get("event_type", "")).strip()
+    note = str(form.get("note", "")).strip() or None
+    next_follow_up_date = str(form.get("next_follow_up_date", "")).strip() or None
+
+    if event_type not in APPLICATION_EVENT_TYPES:
+        raise HTTPException(status_code=400, detail="Event type is invalid.")
+
+    if event_type in {"rejected", "withdrawn"}:
+        update_application(application_id, {"status": event_type})
+        if note:
+            create_application_event(application_id, "note_added", note=note)
+    elif event_type == "offer_received":
+        update_application(application_id, {"status": "offer"})
+        if note:
+            create_application_event(application_id, "note_added", note=note)
+    else:
+        create_application_event(application_id, event_type, note=note)
+
+    if next_follow_up_date:
+        update_application(application_id, {"follow_up_date": next_follow_up_date})
+    elif event_type == "follow_up_sent" and application.get("follow_up_date"):
+        update_application(application_id, {"follow_up_date": None})
+
+    return RedirectResponse(url=f"/applications/{application_id}", status_code=303)
 
 
 @router.post("/applications/{application_id}/edit")

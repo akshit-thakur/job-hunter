@@ -6,14 +6,41 @@ struct QuickLogView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
-        case company, role, url, notes
+        case company, role, url, followUpDate, notes
     }
+
+    private let sources = [
+        ("", "Auto"),
+        ("linkedin", "LinkedIn"),
+        ("company_site", "Company site"),
+        ("referral", "Referral"),
+        ("job_board", "Job board"),
+        ("recruiter", "Recruiter"),
+        ("naukri", "Naukri"),
+        ("indeed", "Indeed"),
+        ("company_portal", "Company portal"),
+        ("network", "Network"),
+        ("other", "Other"),
+    ]
+
+    private let workModes = [
+        ("unknown", "Unknown"),
+        ("remote", "Remote"),
+        ("hybrid", "Hybrid"),
+        ("onsite", "Onsite"),
+        ("freelance", "Freelance"),
+    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
             VStack(alignment: .leading, spacing: 8) {
+                Button("Use Active Tab") {
+                    model.useActiveTab()
+                }
+                .buttonStyle(.bordered)
+
                 TextField("Company", text: $model.company)
                     .focused($focusedField, equals: .company)
                     .textFieldStyle(.roundedBorder)
@@ -24,6 +51,26 @@ struct QuickLogView: View {
 
                 TextField("Job Posting URL", text: $model.url)
                     .focused($focusedField, equals: .url)
+                    .textFieldStyle(.roundedBorder)
+
+                HStack(spacing: 8) {
+                    Picker("Source", selection: $model.source) {
+                        ForEach(sources, id: \.0) { value, label in
+                            Text(label).tag(value)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Picker("Mode", selection: $model.workMode) {
+                        ForEach(workModes, id: \.0) { value, label in
+                            Text(label).tag(value)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                TextField("Follow-up YYYY-MM-DD", text: $model.followUpDate)
+                    .focused($focusedField, equals: .followUpDate)
                     .textFieldStyle(.roundedBorder)
 
                 TextField("Notes", text: $model.notes, axis: .vertical)

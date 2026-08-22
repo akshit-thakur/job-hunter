@@ -40,6 +40,78 @@
   </div>
 </section>
 
+<section class="panel application-activity">
+  <div class="detail-section">
+    <h2 class="detail-section-title">Activity</h2>
+    <div class="quick-event-actions">
+      {% for event_type, label in [
+        ("follow_up_sent", "Followed up"),
+        ("reply_received", "Got reply"),
+        ("interview_scheduled", "Interview scheduled"),
+        ("rejected", "Rejected"),
+        ("offer_received", "Offer")
+      ] %}
+      <form method="post" action="/applications/{{ application.id }}/events" class="d-inline">
+        <input type="hidden" name="event_type" value="{{ event_type }}">
+        <button class="btn btn-sm btn-outline-secondary" type="submit">{{ label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+
+    <form method="post" action="/applications/{{ application.id }}/events" class="activity-form form-compact">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label" for="event_type">Activity</label>
+          <select class="form-select form-select-sm" id="event_type" name="event_type">
+            {% for event_type in event_types %}
+            <option value="{{ event_type }}">{{ event_type|replace("_", " ") }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label" for="note">Note</label>
+          <input class="form-control form-control-sm" id="note" name="note" placeholder="Optional update">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="next_follow_up_date">Next follow-up</label>
+          <input class="form-control form-control-sm" id="next_follow_up_date" name="next_follow_up_date" type="date">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-sm btn-primary w-100" type="submit">Add Activity</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="activity-timeline">
+    {% for event in events %}
+    <article class="activity-item">
+      <div class="activity-marker"></div>
+      <div>
+        <div class="activity-heading">
+          <span>{{ event.label }}</span>
+          <time>{{ event.occurred_at }}</time>
+        </div>
+        {% if event.metadata.from_status or event.metadata.to_status %}
+        <div class="activity-meta">{{ event.metadata.from_status or "unset" }} -&gt; {{ event.metadata.to_status or "unset" }}</div>
+        {% endif %}
+        {% if event.metadata.old_follow_up_date or event.metadata.new_follow_up_date %}
+        <div class="activity-meta">Follow-up: {{ event.metadata.old_follow_up_date or "unset" }} -&gt; {{ event.metadata.new_follow_up_date or "unset" }}</div>
+        {% endif %}
+        {% if event.metadata.old_resume_version or event.metadata.new_resume_version %}
+        <div class="activity-meta">Resume: {{ event.metadata.old_resume_version or "unset" }} -&gt; {{ event.metadata.new_resume_version or "unset" }}</div>
+        {% endif %}
+        {% if event.note %}
+        <div class="activity-note">{{ event.note }}</div>
+        {% endif %}
+      </div>
+    </article>
+    {% else %}
+    <p class="text-muted mb-0">No activity yet.</p>
+    {% endfor %}
+  </div>
+</section>
+
 <div class="detail-actions">
   <form method="post" action="/applications/{{ application.id }}/duplicate" class="d-inline">
     <button class="btn btn-outline-secondary" type="submit">Duplicate as new</button>

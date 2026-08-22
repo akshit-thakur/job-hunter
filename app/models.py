@@ -28,6 +28,23 @@ SOURCES = (
 
 CLOSED_STATUSES = ("offer", "rejected", "withdrawn", "closed")
 
+APPLICATION_EVENT_TYPES = (
+    "created",
+    "applied",
+    "status_changed",
+    "follow_up_scheduled",
+    "follow_up_sent",
+    "reply_received",
+    "interview_scheduled",
+    "interview_completed",
+    "resume_sent",
+    "referral_added",
+    "offer_received",
+    "rejected",
+    "withdrawn",
+    "note_added",
+)
+
 APPLICATION_FIELDS = (
     "id",
     "company",

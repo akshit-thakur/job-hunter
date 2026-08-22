@@ -78,6 +78,7 @@ label {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid #cbd5e1;
@@ -96,6 +97,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: #087f8c;
   box-shadow: 0 0 0 3px rgba(8, 127, 140, 0.14);
@@ -172,6 +174,7 @@ button:disabled {
   }
 
   input,
+  select,
   textarea {
     border-color: #46515f;
     color: #f1f5f9;

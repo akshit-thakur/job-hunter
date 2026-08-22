@@ -3,6 +3,15 @@
 {% block title %}Applications - Job Tracker{% endblock %}
 {% block body_attrs %}{% if duplicate_last_url %} data-duplicate-last-url="{{ duplicate_last_url }}"{% endif %}{% endblock %}
 {% block content %}
+{% if import_summary %}
+<div class="alert alert-success py-2">
+  Import complete:
+  <strong>{{ import_summary.created }}</strong> created,
+  <strong>{{ import_summary.updated }}</strong> updated,
+  <strong>{{ import_summary.skipped }}</strong> skipped.
+</div>
+{% endif %}
+
 <div class="page-header applications-page-header">
   <div>
     <h1>Applications</h1>
@@ -54,6 +63,15 @@
     <a class="btn btn-outline-secondary" href="/applications">Clear</a>
   </div>
   </div>
+</form>
+</details>
+
+<details class="header-tool">
+  <summary>Import</summary>
+<form class="header-tool-panel import-panel" method="post" action="/applications/import" enctype="multipart/form-data">
+  <label class="visually-hidden" for="applications-import-file">CSV or JSON file</label>
+  <input class="form-control form-control-sm" id="applications-import-file" name="file" type="file" accept=".csv,.json,text/csv,application/json" required>
+  <button class="btn btn-sm btn-secondary" type="submit">Import</button>
 </form>
 </details>
 
