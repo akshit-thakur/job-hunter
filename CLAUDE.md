@@ -35,7 +35,7 @@ Run this before considering any change complete.
 - `app/queries.py` — all SQL, plus `normalize_application_form` (server-side form validation)
 - `app/models.py` — status/source/work-mode enums and `APPLICATION_FIELDS`
 - `app/csv_export.py` — CSV export serialization
-- `app/routes/` — dashboard, applications, followups, export
+- `app/routes/` — dashboard, applications, export
 - `templates/`, `static/` — Jinja2 views and CSS
 - `tests/` — pytest suite
 - `scripts/smoke_test.sh` — post-deploy smoke test against a running instance
@@ -63,7 +63,6 @@ All optional; code defaults cover local use, so `.env` is not required.
 - status
 - job_description
 - applied_date
-- follow_up_date
 - notes
 - created_at
 - updated_at

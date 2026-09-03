@@ -51,37 +51,13 @@
 <div class="table-responsive">
   <table class="table table-sm table-hover align-middle data-table">
     <thead>
-      {% if mode == "followups" %}
-      <tr>
-        <th class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" data-select-all aria-label="Select all applications"></th><th>Follow-up</th><th>Company</th><th>Role</th><th>Status</th><th>Source</th><th>Notes</th><th class="action-column" data-row-actions></th>
-      </tr>
-      {% else %}
       <tr>
         <th class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" data-select-all aria-label="Select all applications"></th><th>Company</th><th>Role</th><th>Location</th><th>Status</th><th>Source</th><th>Mode</th>
         <th>Applied</th><th>Updated</th><th class="action-column" data-row-actions></th>
       </tr>
-      {% endif %}
     </thead>
     <tbody>
       {% for app in applications %}
-      {% if mode == "followups" %}
-      <tr class="application-row{% if app.status in inactive_statuses %} application-row-muted{% endif %}" data-view-url="/applications/{{ app.id }}" tabindex="0" aria-label="View {{ app.company }} - {{ app.role_title }}">
-        <td class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" name="application_ids" value="{{ app.id }}" form="bulk-update-form" aria-label="Select {{ app.company }} - {{ app.role_title }}"></td>
-        <td class="text-nowrap date-cell">{{ app.follow_up_date }}</td>
-        <td class="primary-cell">{{ app.company }}</td>
-        <td>{{ app.role_title }}</td>
-        <td>{{ status_badge(app.status) }}</td>
-        <td>{{ source_badge(app.source) }}</td>
-        <td class="notes-cell">{{ app.notes or "" }}</td>
-        <td class="text-end action-column" data-row-actions>
-          <form method="post" action="/applications/{{ app.id }}/events" class="d-inline">
-            <input type="hidden" name="event_type" value="follow_up_sent">
-            <button class="btn btn-sm btn-outline-primary action-button" type="submit">Followed up</button>
-          </form>
-          {{ edit_action(app.id, app.jd_url) }}
-        </td>
-      </tr>
-      {% else %}
       <tr class="application-row{% if app.status in inactive_statuses %} application-row-muted{% endif %}" data-view-url="/applications/{{ app.id }}" tabindex="0" aria-label="View {{ app.company }} - {{ app.role_title }}">
         <td class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" name="application_ids" value="{{ app.id }}" form="bulk-update-form" aria-label="Select {{ app.company }} - {{ app.role_title }}"></td>
         <td class="primary-cell">{{ app.company }}</td>
@@ -94,13 +70,8 @@
         <td class="text-nowrap muted-cell">{{ app.updated_at }}</td>
         <td class="text-end action-column" data-row-actions>{{ edit_action(app.id, app.jd_url) }}</td>
       </tr>
-      {% endif %}
       {% else %}
-      <tr>
-        <td colspan="{% if mode == 'followups' %}9{% else %}10{% endif %}" class="empty-cell">
-          {% if mode == "followups" %}No follow-ups are due.{% else %}No applications found.{% endif %}
-        </td>
-      </tr>
+      <tr><td colspan="10" class="empty-cell">No applications found.</td></tr>
       {% endfor %}
     </tbody>
   </table>

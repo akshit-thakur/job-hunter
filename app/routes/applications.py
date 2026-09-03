@@ -442,7 +442,6 @@ async def create_application_event_route(request: Request, application_id: int):
     form = await request.form()
     event_type = str(form.get("event_type", "")).strip()
     note = str(form.get("note", "")).strip() or None
-    next_follow_up_date = str(form.get("next_follow_up_date", "")).strip() or None
 
     if event_type not in APPLICATION_EVENT_TYPES:
         raise HTTPException(status_code=400, detail="Event type is invalid.")
@@ -457,11 +456,6 @@ async def create_application_event_route(request: Request, application_id: int):
             create_application_event(application_id, "note_added", note=note)
     else:
         create_application_event(application_id, event_type, note=note)
-
-    if next_follow_up_date:
-        update_application(application_id, {"follow_up_date": next_follow_up_date})
-    elif event_type == "follow_up_sent" and application.get("follow_up_date"):
-        update_application(application_id, {"follow_up_date": None})
 
     return RedirectResponse(url=f"/applications/{application_id}", status_code=303)
 

@@ -64,7 +64,6 @@ IMPORT_FIELD_ALIASES = {
     "mode": "work_mode",
     "jd": "job_description",
     "description": "job_description",
-    "followup_date": "follow_up_date",
 }
 
 COMPANY_SUFFIX_PATTERN = re.compile(
@@ -175,7 +174,6 @@ def normalize_application_form(form: dict[str, Any]) -> tuple[dict[str, Any], li
         "status": clean_text(form.get("status")) or "saved",
         "job_description": clean_text(form.get("job_description")),
         "applied_date": parse_date(form.get("applied_date"), "Applied date", errors),
-        "follow_up_date": parse_date(form.get("follow_up_date"), "Follow-up date", errors),
         "notes": clean_text(form.get("notes")),
     }
 
@@ -387,20 +385,6 @@ def _log_application_changes(
             metadata={
                 "from_status": existing.get("status"),
                 "to_status": values["status"],
-            },
-        )
-    if (
-        "follow_up_date" in values
-        and values["follow_up_date"]
-        and values["follow_up_date"] != existing.get("follow_up_date")
-    ):
-        _create_application_event(
-            conn,
-            application_id,
-            "follow_up_scheduled",
-            metadata={
-                "old_follow_up_date": existing.get("follow_up_date"),
-                "new_follow_up_date": values["follow_up_date"],
             },
         )
     if "notes" in values and values["notes"] and values["notes"] != existing.get("notes"):
@@ -749,23 +733,6 @@ def list_applications(
     return [dict(row) for row in rows]
 
 
-def due_followups(today: str | None = None) -> list[dict[str, Any]]:
-    today = today or date.today().isoformat()
-    placeholders = ", ".join("?" for _ in CLOSED_STATUSES)
-    with closing(get_connection()) as conn:
-        rows = conn.execute(
-            f"""
-            select * from applications
-            where follow_up_date is not null
-              and follow_up_date <= ?
-              and status not in ({placeholders})
-            order by follow_up_date asc, updated_at desc
-            """,
-            [today, *CLOSED_STATUSES],
-        ).fetchall()
-    return [dict(row) for row in rows]
-
-
 def _count_value(
     conn,
     column: str,
@@ -874,8 +841,7 @@ def stats_for_api() -> dict[str, Any]:
                 coalesce(sum(case when status != 'saved' then 1 else 0 end), 0) as applied,
                 coalesce(sum(case when status in ({interviewing_placeholders}) then 1 else 0 end), 0) as interviewing,
                 coalesce(sum(case when status not in ({closed_placeholders}) then 1 else 0 end), 0) as active,
-                coalesce(sum(case when applied_date between ? and ? then 1 else 0 end), 0) as submitted,
-                coalesce(sum(case when follow_up_date is not null and follow_up_date <= ? and status not in ({closed_placeholders}) then 1 else 0 end), 0) as followups_due
+                coalesce(sum(case when applied_date between ? and ? then 1 else 0 end), 0) as submitted
             from applications
             where coalesce(work_mode, '') != 'freelance'
             """,
@@ -884,8 +850,6 @@ def stats_for_api() -> dict[str, Any]:
                 *CLOSED_STATUSES,
                 week_start.isoformat(),
                 week_end.isoformat(),
-                date.today().isoformat(),
-                *CLOSED_STATUSES,
             ],
         ).fetchone()
     return {
@@ -896,7 +860,6 @@ def stats_for_api() -> dict[str, Any]:
         "submitted_this_week": stats["submitted"],
         # Kept for compatibility with already-installed menu-bar clients.
         "weekly_target": _weekly_target(),
-        "followups_due": stats["followups_due"],
     }
 
 

@@ -5,9 +5,8 @@ A self-hosted, single-user job application tracker built with FastAPI, Jinja2, S
 ## Features
 
 - Add and edit job applications
-- Track status, source, work mode, salary range (currency-agnostic), job description text, notes, and follow-up dates
+- Track status, source, work mode, salary range (currency-agnostic), job description text, and notes
 - Dashboard metrics for weekly volume, funnel state, sources, locations, and work modes
-- Follow-ups due page
 - CSV export
 - Compact quick-add clients for the macOS menu bar and Zen/Firefox
 
@@ -106,8 +105,7 @@ Recognized columns include:
 
 ```text
 company, role_title, role, location, work_mode, mode, source, jd_url, url,
-salary_min, salary_max, status, job_description, description, applied_date,
-follow_up_date, notes
+salary_min, salary_max, status, job_description, description, applied_date, notes
 ```
 
 When `source` is omitted or set to `other`, the importer infers it from the job URL using the same static host dictionary as quick-add.
@@ -143,8 +141,8 @@ Exit 0 means all checks passed. Non-zero means at least one check failed — the
 
 The same process also serves a small JSON API for the native and browser quick-add clients:
 
-- `GET /stats` → `{ applied, interviewing, active, total, submitted_this_week, weekly_target, followups_due }`
-- `POST /applications` → body `{ company, role, url?, status?, notes?, job_description?, source?, work_mode?, location?, follow_up_date? }` creates a row (defaults `status` to `applied`)
+- `GET /stats` → `{ applied, interviewing, active, total, submitted_this_week, weekly_target }`
+- `POST /applications` → body `{ company, role, url?, status?, notes?, job_description?, source?, work_mode?, location? }` creates a row (defaults `status` to `applied`)
 
 Required and optional text values are trimmed by the API before they are stored.
 If `source` is omitted or `other`, the API infers a source from common job posting hosts such as LinkedIn, Indeed, Naukri, Greenhouse, Lever, Ashby, and Workday.

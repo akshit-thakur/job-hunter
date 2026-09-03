@@ -18,7 +18,6 @@ def _app_data(**overrides):
         "status": "applied",
         "job_description": "Build backend services in Python.",
         "applied_date": "2026-08-01",
-        "follow_up_date": None,
         "notes": "LinkedIn Easy Apply",
     }
     return {**base, **overrides}

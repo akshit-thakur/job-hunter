@@ -36,7 +36,6 @@ struct ApplicationPayload: Codable, Equatable, Sendable {
     var notes: String?
     var source: String?
     var workMode: String?
-    var followUpDate: String?
 
     init(
         company: String,
@@ -45,8 +44,7 @@ struct ApplicationPayload: Codable, Equatable, Sendable {
         status: String = "applied",
         notes: String? = nil,
         source: String? = nil,
-        workMode: String? = nil,
-        followUpDate: String? = nil
+        workMode: String? = nil
     ) {
         self.company = company
         self.role = role
@@ -55,7 +53,6 @@ struct ApplicationPayload: Codable, Equatable, Sendable {
         self.notes = notes
         self.source = source
         self.workMode = workMode
-        self.followUpDate = followUpDate
     }
 
     enum CodingKeys: String, CodingKey {
@@ -66,7 +63,6 @@ struct ApplicationPayload: Codable, Equatable, Sendable {
         case notes
         case source
         case workMode = "work_mode"
-        case followUpDate = "follow_up_date"
     }
 }
 
@@ -80,7 +76,6 @@ struct ApplicationResponse: Codable, Equatable, Sendable {
     let source: String
     let workMode: String
     let location: String?
-    let followUpDate: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -92,7 +87,6 @@ struct ApplicationResponse: Codable, Equatable, Sendable {
         case source
         case workMode = "work_mode"
         case location
-        case followUpDate = "follow_up_date"
     }
 }
 

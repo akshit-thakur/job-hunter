@@ -126,7 +126,6 @@ form.addEventListener("submit", async function (event) {
     url: clean(form.elements.url.value) || null,
     source: clean(form.elements.source.value) || null,
     work_mode: clean(form.elements.work_mode.value) || null,
-    follow_up_date: clean(form.elements.follow_up_date.value) || null,
     notes: clean(form.elements.notes.value) || null,
     status: "applied"
   };

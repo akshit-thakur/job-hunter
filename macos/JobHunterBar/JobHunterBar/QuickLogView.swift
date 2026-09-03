@@ -6,7 +6,7 @@ struct QuickLogView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
-        case company, role, url, followUpDate, notes
+        case company, role, url, notes
     }
 
     private let sources = [
@@ -68,10 +68,6 @@ struct QuickLogView: View {
                     }
                     .pickerStyle(.menu)
                 }
-
-                TextField("Follow-up YYYY-MM-DD", text: $model.followUpDate)
-                    .focused($focusedField, equals: .followUpDate)
-                    .textFieldStyle(.roundedBorder)
 
                 TextField("Notes", text: $model.notes, axis: .vertical)
                     .focused($focusedField, equals: .notes)

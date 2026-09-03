@@ -27,7 +27,6 @@
     <div class="detail-fields">
       <div class="detail-item"><div class="detail-label">Source</div><div>{{ ui.source_badge(application.source) }}</div></div>
       <div class="detail-item"><div class="detail-label">Applied</div><div>{{ application.applied_date or "Not specified" }}</div></div>
-      <div class="detail-item"><div class="detail-label">Follow-up</div><div>{{ application.follow_up_date or "Not specified" }}</div></div>
       <div class="detail-item"><div class="detail-label">Salary range</div><div>{{ application.salary_min or "" }}{% if application.salary_min and application.salary_max %} - {% endif %}{{ application.salary_max or "Not specified" }}</div></div>
       <div class="detail-item"><div class="detail-label">Job posting</div><div>{% if application.jd_url %}<a class="external-link-icon" href="{{ application.jd_url }}" target="_blank" rel="noopener" aria-label="Open job posting" title="Open job posting">&#x2197;</a>{% else %}Not specified{% endif %}</div></div>
     </div>
@@ -113,11 +112,7 @@
           <label class="form-label" for="note">Note</label>
           <input class="form-control form-control-sm" id="note" name="note" placeholder="Optional update">
         </div>
-        <div class="col-md-2">
-          <label class="form-label" for="next_follow_up_date">Next follow-up</label>
-          <input class="form-control form-control-sm" id="next_follow_up_date" name="next_follow_up_date" type="date">
-        </div>
-        <div class="col-md-2">
+        <div class="col-md-4">
           <button class="btn btn-sm btn-primary w-100" type="submit">Add Activity</button>
         </div>
       </div>
@@ -135,9 +130,6 @@
         </div>
         {% if event.metadata.from_status or event.metadata.to_status %}
         <div class="activity-meta">{{ event.metadata.from_status or "unset" }} -&gt; {{ event.metadata.to_status or "unset" }}</div>
-        {% endif %}
-        {% if event.metadata.old_follow_up_date or event.metadata.new_follow_up_date %}
-        <div class="activity-meta">Follow-up: {{ event.metadata.old_follow_up_date or "unset" }} -&gt; {{ event.metadata.new_follow_up_date or "unset" }}</div>
         {% endif %}
         {% if event.note %}
         <div class="activity-note">{{ event.note }}</div>

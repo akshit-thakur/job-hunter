@@ -23,7 +23,6 @@ def _app_data(**overrides):
         "status": "saved",
         "job_description": None,
         "applied_date": None,
-        "follow_up_date": None,
         "notes": None,
     }
     return {**base, **overrides}
@@ -42,7 +41,6 @@ def test_dashboard_renders_location_and_work_mode_breakdowns(client, tmp_db):
     assert b"Location Breakdown" in resp.content
     assert b"Work Mode Breakdown" in resp.content
     assert b"Closed Applications" in resp.content
-    assert b"Follow-ups Due" not in resp.content
     assert b"Weekly Application Target" not in resp.content
     assert b"breakdown-track" in resp.content
 
@@ -279,7 +277,7 @@ def test_application_detail_renders_without_editing(client, tmp_db):
 
 
 def test_application_event_route_adds_activity(client, tmp_db):
-    app_id = create_application(_app_data(company="ActivityCo", follow_up_date="2026-08-20"))
+    app_id = create_application(_app_data(company="ActivityCo"))
     resp = client.post(
         f"/applications/{app_id}/events",
         data={"event_type": "follow_up_sent", "note": "Sent follow-up"},
@@ -290,7 +288,6 @@ def test_application_event_route_adds_activity(client, tmp_db):
     events = list_application_events(app_id)
     assert events[0]["event_type"] == "follow_up_sent"
     assert events[0]["note"] == "Sent follow-up"
-    assert get_application(app_id)["follow_up_date"] is None
 
 
 def test_application_event_route_can_update_status(client, tmp_db):
@@ -326,21 +323,6 @@ def test_application_delete_route_removes_row(client, tmp_db):
 def test_application_detail_missing_returns_404(client):
     resp = client.get("/applications/99999")
     assert resp.status_code == 404
-
-
-def test_followups_renders(client):
-    resp = client.get("/followups")
-    assert resp.status_code == 200
-
-
-def test_followups_page_has_followed_up_action(client, tmp_db):
-    app_id = create_application(
-        _app_data(company="FollowCo", status="applied", follow_up_date="2020-01-01")
-    )
-    resp = client.get("/followups")
-    assert resp.status_code == 200
-    assert f'action="/applications/{app_id}/events"' in resp.text
-    assert b"Followed up" in resp.content
 
 
 def test_csv_export_headers(client):
@@ -381,7 +363,6 @@ def _post_form(**overrides):
         "status": "saved",
         "job_description": "",
         "applied_date": "",
-        "follow_up_date": "",
         "notes": "",
     }
     return {**base, **overrides}
@@ -448,7 +429,6 @@ def test_edit_application_updates_and_redirects(client):
             "status": "saved",
             "job_description": None,
             "applied_date": None,
-            "follow_up_date": None,
             "notes": None,
         }
     )
@@ -493,7 +473,6 @@ def test_edit_application_validation_error(client):
             "status": "saved",
             "job_description": None,
             "applied_date": None,
-            "follow_up_date": None,
             "notes": None,
         }
     )

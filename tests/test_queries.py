@@ -4,7 +4,6 @@ from app.queries import (
     create_application,
     bulk_update_application_fields,
     create_application_event,
-    due_followups,
     get_application,
     infer_source_from_url,
     import_applications_csv,
@@ -29,7 +28,6 @@ def _app_data(**overrides):
         "status": "saved",
         "job_description": None,
         "applied_date": None,
-        "follow_up_date": None,
         "notes": None,
     }
     return {**base, **overrides}
@@ -84,17 +82,6 @@ def test_update_application(tmp_db):
         "from_status": "saved",
         "to_status": "applied",
     }
-
-
-def test_update_application_logs_follow_up_changes(tmp_db):
-    app_id = create_application(_app_data())
-    update_application(
-        app_id,
-        {"follow_up_date": "2026-08-20"},
-    )
-    events = list_application_events(app_id)
-    event_types = [event["event_type"] for event in events]
-    assert "follow_up_scheduled" in event_types
 
 
 def test_create_application_event_validates_application_and_type(tmp_db):
@@ -375,16 +362,3 @@ def test_import_applications_json_handles_new_linkedin_structure(tmp_db):
     assert row["applied_date"] == "2026-06-15"
     assert row["source"] == "linkedin"
     assert "Original status: Closed" in row["notes"]
-
-
-def test_due_followups(tmp_db):
-    past = "2020-01-01"
-    future = "2099-12-31"
-    create_application(_app_data(follow_up_date=past, status="applied"))
-    create_application(_app_data(follow_up_date=future, status="applied"))
-    create_application(_app_data(follow_up_date=past, status="rejected"))
-
-    today = date.today().isoformat()
-    due = due_followups(today)
-    assert len(due) == 1
-    assert due[0]["follow_up_date"] == past

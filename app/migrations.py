@@ -122,6 +122,14 @@ MIGRATIONS: list[tuple[str, str]] = [
         "015_drop_resumes",
         "DROP TABLE IF EXISTS resumes",
     ),
+    (
+        "016_drop_applications_follow_up_date_index",
+        "DROP INDEX IF EXISTS idx_applications_follow_up_date",
+    ),
+    (
+        "017_drop_application_follow_up_date",
+        "ALTER TABLE applications DROP COLUMN follow_up_date",
+    ),
 ]
 
 

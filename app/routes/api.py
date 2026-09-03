@@ -27,7 +27,6 @@ class ApplicationCreateRequest(BaseModel):
     source: str | None = None
     work_mode: str | None = None
     location: str | None = None
-    follow_up_date: str | None = None
 
     @field_validator("company", "role", mode="before")
     @classmethod
@@ -43,7 +42,6 @@ class ApplicationCreateRequest(BaseModel):
         "source",
         "work_mode",
         "location",
-        "follow_up_date",
         mode="before",
     )
     @classmethod
@@ -74,7 +72,6 @@ class ApplicationCreateResponse(BaseModel):
     source: str
     work_mode: str
     location: str | None
-    follow_up_date: str | None
 
 
 class StatsResponse(BaseModel):
@@ -84,7 +81,6 @@ class StatsResponse(BaseModel):
     total: int
     submitted_this_week: int
     weekly_target: int
-    followups_due: int
 
 
 @router.get("/stats", response_model=StatsResponse)
@@ -110,7 +106,6 @@ def post_application(body: ApplicationCreateRequest) -> ApplicationCreateRespons
         "salary_min": None,
         "salary_max": None,
         "applied_date": date.today().isoformat() if body.status != "saved" else None,
-        "follow_up_date": body.follow_up_date,
     }
     data, errors = normalize_application_form(form)
     if errors:
@@ -128,5 +123,4 @@ def post_application(body: ApplicationCreateRequest) -> ApplicationCreateRespons
         source=data["source"],
         work_mode=data["work_mode"],
         location=data["location"],
-        follow_up_date=data["follow_up_date"],
     )

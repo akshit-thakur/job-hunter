@@ -1,8 +1,0 @@
-{% extends "base.html" %}
-{% import "_macros.html" as ui %}
-{% block title %}Follow-ups - Job Tracker{% endblock %}
-{% block content %}
-{{ ui.page_header("Follow-ups Due", None, "Add Application", "/applications/new") }}
-
-{{ ui.applications_table(applications, "followups") }}
-{% endblock %}

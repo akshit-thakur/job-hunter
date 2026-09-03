@@ -66,7 +66,6 @@ final class AppModel: ObservableObject {
     @Published var notes = ""
     @Published var source = ""
     @Published var workMode = "unknown"
-    @Published var followUpDate = ""
     @Published var isSubmitting = false
     @Published var isStartingBackend = false
 
@@ -152,8 +151,7 @@ final class AppModel: ObservableObject {
             status: "applied",
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             source: source.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-            workMode: workMode.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-            followUpDate: followUpDate.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            workMode: workMode.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         )
 
         do {
@@ -163,7 +161,6 @@ final class AppModel: ObservableObject {
             url = ""
             notes = ""
             source = ""
-            followUpDate = ""
             statusMessage = "Saved"
             lastError = nil
             await refreshStats()
