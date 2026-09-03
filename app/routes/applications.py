@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from shutil import rmtree
 from uuid import uuid4
 from urllib.parse import urlencode
 
@@ -43,13 +45,15 @@ from app.web import templates
 
 router = APIRouter()
 
-ALLOWED_IMAGE_TYPES = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-    "image/gif": ".gif",
-}
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class PreparedImage:
+    original_filename: str
+    content: bytes
+    content_type: str
+    extension: str
 
 FORM_FIELDS = tuple(
     field for field in APPLICATION_FIELDS if field not in ("id", "created_at", "updated_at")
@@ -103,6 +107,58 @@ async def _save_application_images(
     application_id: int,
     images: list[UploadFile],
 ) -> int:
+    return _save_prepared_application_images(
+        application_id,
+        await _prepare_application_images(images),
+    )
+
+
+async def _prepare_application_images(images: list[UploadFile]) -> list[PreparedImage]:
+    prepared = []
+    if not images:
+        return prepared
+
+    for image in images:
+        if not image.filename:
+            continue
+
+        content = await image.read()
+        if len(content) > MAX_IMAGE_BYTES:
+            raise HTTPException(status_code=400, detail="Images must be 10 MB or smaller.")
+
+        detected = _detect_image_type(content)
+        if detected is None:
+            raise HTTPException(status_code=400, detail="Upload valid PNG, JPG, GIF, or WebP images.")
+
+        content_type, extension = detected
+        prepared.append(
+            PreparedImage(
+                original_filename=image.filename,
+                content=content,
+                content_type=content_type,
+                extension=extension,
+            )
+        )
+
+    return prepared
+
+
+def _detect_image_type(content: bytes) -> tuple[str, str] | None:
+    if content.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg", ".jpg"
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png", ".png"
+    if content.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif", ".gif"
+    if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return "image/webp", ".webp"
+    return None
+
+
+def _save_prepared_application_images(
+    application_id: int,
+    images: list[PreparedImage],
+) -> int:
     saved_count = 0
     if not images:
         return saved_count
@@ -111,27 +167,21 @@ async def _save_application_images(
     image_dir.mkdir(parents=True, exist_ok=True)
 
     for image in images:
-        if not image.filename:
-            continue
-        extension = ALLOWED_IMAGE_TYPES.get(image.content_type or "")
-        if extension is None:
-            raise HTTPException(status_code=400, detail="Upload PNG, JPG, GIF, or WebP images.")
-
-        content = await image.read()
-        if len(content) > MAX_IMAGE_BYTES:
-            raise HTTPException(status_code=400, detail="Images must be 10 MB or smaller.")
-
-        stored_name = f"{uuid4().hex}{extension}"
+        stored_name = f"{uuid4().hex}{image.extension}"
         relative_path = Path("application_images") / str(application_id) / stored_name
         destination = image_dir / stored_name
-        destination.write_bytes(content)
-        create_application_image(
-            application_id,
-            original_filename=image.filename,
-            stored_path=relative_path.as_posix(),
-            content_type=image.content_type or "application/octet-stream",
-            size_bytes=len(content),
-        )
+        destination.write_bytes(image.content)
+        try:
+            create_application_image(
+                application_id,
+                original_filename=image.original_filename,
+                stored_path=relative_path.as_posix(),
+                content_type=image.content_type,
+                size_bytes=len(image.content),
+            )
+        except Exception:
+            destination.unlink(missing_ok=True)
+            raise
         saved_count += 1
     return saved_count
 
@@ -278,6 +328,7 @@ def delete_application_route(application_id: int):
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
     delete_application(application_id)
+    rmtree(UPLOADS_DIR / "application_images" / str(application_id), ignore_errors=True)
     return RedirectResponse(url="/applications", status_code=303)
 
 
@@ -285,6 +336,7 @@ def delete_application_route(application_id: int):
 async def create_application_route(request: Request):
     form = await request.form()
     raw = {field: str(form.get(field, "")) for field in FORM_FIELDS}
+    prepared_images = await _prepare_application_images(form.getlist("images"))
     duplicate_confirmed = str(form.get("duplicate_confirmed", ""))
     data, errors = normalize_application_form(raw)
     if errors:
@@ -307,7 +359,12 @@ async def create_application_route(request: Request):
                 ),
             )
     application_id = create_application(data)
-    await _save_application_images(application_id, form.getlist("images"))
+    try:
+        _save_prepared_application_images(application_id, prepared_images)
+    except Exception:
+        delete_application(application_id)
+        rmtree(UPLOADS_DIR / "application_images" / str(application_id), ignore_errors=True)
+        raise
     return RedirectResponse(url=f"/applications/{application_id}", status_code=303)
 
 
@@ -373,6 +430,11 @@ def delete_application_image_route(application_id: int, image_id: int):
         stored_path.unlink()
     except FileNotFoundError:
         pass
+    create_application_event(
+        application_id,
+        "note_added",
+        note=f"Deleted image: {deleted['original_filename']}",
+    )
     return RedirectResponse(url=f"/applications/{application_id}", status_code=303)
 
 
@@ -415,6 +477,7 @@ async def update_application_route(request: Request, application_id: int):
         raise HTTPException(status_code=404, detail="Application not found")
     form = await request.form()
     raw = {field: str(form.get(field, "")) for field in FORM_FIELDS}
+    prepared_images = await _prepare_application_images(form.getlist("images"))
     data, errors = normalize_application_form(raw)
     if errors:
         return templates.TemplateResponse(
@@ -428,5 +491,5 @@ async def update_application_route(request: Request, application_id: int):
             status_code=400,
         )
     update_application(application_id, data)
-    await _save_application_images(application_id, form.getlist("images"))
+    _save_prepared_application_images(application_id, prepared_images)
     return RedirectResponse(url=f"/applications/{application_id}", status_code=303)

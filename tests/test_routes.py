@@ -6,6 +6,7 @@ from app.queries import (
     get_application,
     list_application_events,
     list_application_images,
+    list_applications,
 )
 
 
@@ -203,19 +204,58 @@ def test_application_create_accepts_image_upload(client):
     assert b"/uploads/application_images/" in detail.content
 
 
-def test_application_image_delete_removes_record(client):
+def test_application_create_rejects_invalid_image_without_creating_row(client):
+    response = client.post(
+        "/applications/new",
+        data={
+            "company": "BadImageCo",
+            "role_title": "Screenshot Engineer",
+            "status": "applied",
+            "source": "naukri",
+            "work_mode": "unknown",
+        },
+        files={"images": ("posting.jpg", b"not an image", "image/jpeg")},
+    )
+    assert response.status_code == 400
+    assert b"Upload valid PNG, JPG, GIF, or WebP images." in response.content
+    assert list_applications(search="BadImageCo") == []
+
+
+def test_application_image_delete_removes_record_and_file(client, tmp_path):
     app_id = create_application(_app_data(company="DeleteImageCo"))
     upload = client.post(
         f"/applications/{app_id}/images",
-        files={"images": ("posting.jpg", b"fake-jpg", "image/jpeg")},
+        files={"images": ("posting.jpg", b"\xff\xd8\xff\xe0", "image/jpeg")},
     )
     assert upload.status_code == 303
-    image_id = list_application_images(app_id)[0]["id"]
+    image = list_application_images(app_id)[0]
+    image_id = image["id"]
+    stored_file = tmp_path / "uploads" / image["stored_path"]
+    assert stored_file.exists()
 
     response = client.post(f"/applications/{app_id}/images/{image_id}/delete")
     assert response.status_code == 303
     assert response.headers["location"] == f"/applications/{app_id}"
     assert list_application_images(app_id) == []
+    assert not stored_file.exists()
+    events = list_application_events(app_id)
+    assert events[0]["note"] == "Deleted image: posting.jpg"
+
+
+def test_application_delete_removes_image_directory(client, tmp_path):
+    app_id = create_application(_app_data(company="DeleteAppImageCo"))
+    upload = client.post(
+        f"/applications/{app_id}/images",
+        files={"images": ("posting.png", b"\x89PNG\r\n\x1a\n", "image/png")},
+    )
+    assert upload.status_code == 303
+    image_dir = tmp_path / "uploads" / "application_images" / str(app_id)
+    assert image_dir.exists()
+
+    response = client.post(f"/applications/{app_id}/delete")
+    assert response.status_code == 303
+    assert list_application_images(app_id) == []
+    assert not image_dir.exists()
 
 
 def test_application_detail_renders_without_editing(client, tmp_db):
@@ -415,6 +455,22 @@ def test_edit_application_updates_and_redirects(client):
 
     edit_resp = client.get(f"/applications/{app_id}/edit")
     assert b"applied" in edit_resp.content
+
+
+def test_edit_application_rejects_invalid_image_without_updating(client):
+    app_id = create_application(_app_data(company="StableCo", status="saved"))
+
+    resp = client.post(
+        f"/applications/{app_id}/edit",
+        data=_post_form(company="ChangedCo", status="applied"),
+        files={"images": ("posting.png", b"not an image", "image/png")},
+    )
+
+    assert resp.status_code == 400
+    application = get_application(app_id)
+    assert application["company"] == "StableCo"
+    assert application["status"] == "saved"
+    assert list_application_images(app_id) == []
 
 
 def test_edit_application_validation_error(client):
