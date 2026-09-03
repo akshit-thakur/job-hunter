@@ -6,6 +6,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = PROJECT_ROOT / "static"
 TEMPLATES_DIR = PROJECT_ROOT / "templates"
 ZEN_EXTENSION_DIR = PROJECT_ROOT / "extensions" / "zen"
+UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", PROJECT_ROOT / "uploads"))
 
 
 def load_env_file(path: str | Path | None = None) -> None:

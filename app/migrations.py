@@ -90,6 +90,26 @@ MIGRATIONS: list[tuple[str, str]] = [
         "010_idx_application_events_event_type",
         "CREATE INDEX IF NOT EXISTS idx_application_events_event_type ON application_events (event_type, occurred_at DESC)",
     ),
+    (
+        "011_create_application_images",
+        """
+        CREATE TABLE IF NOT EXISTS application_images (
+            id INTEGER PRIMARY KEY,
+            application_id INTEGER NOT NULL,
+            original_filename TEXT NOT NULL,
+            stored_path TEXT NOT NULL UNIQUE,
+            content_type TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            caption TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (application_id) REFERENCES applications (id) ON DELETE CASCADE
+        )
+        """,
+    ),
+    (
+        "012_idx_application_images_application_id",
+        "CREATE INDEX IF NOT EXISTS idx_application_images_application_id ON application_images (application_id, created_at DESC)",
+    ),
 ]
 
 

@@ -1,7 +1,12 @@
 import csv
 from io import StringIO
 
-from app.queries import create_application, get_application, list_application_events
+from app.queries import (
+    create_application,
+    get_application,
+    list_application_events,
+    list_application_images,
+)
 
 
 def _app_data(**overrides):
@@ -168,6 +173,49 @@ def test_application_form_renders(client):
     resp = client.get("/applications/new")
     assert resp.status_code == 200
     assert b"Add Application" in resp.content
+    assert b'name="images"' in resp.content
+    assert b'enctype="multipart/form-data"' in resp.content
+
+
+def test_application_create_accepts_image_upload(client):
+    response = client.post(
+        "/applications/new",
+        data={
+            "company": "ImageCo",
+            "role_title": "Screenshot Engineer",
+            "status": "applied",
+            "source": "naukri",
+            "work_mode": "unknown",
+        },
+        files={"images": ("posting.png", b"\x89PNG\r\n\x1a\n", "image/png")},
+    )
+    assert response.status_code == 303
+    app_id = int(response.headers["location"].rsplit("/", 1)[-1])
+
+    images = list_application_images(app_id)
+    assert len(images) == 1
+    assert images[0]["original_filename"] == "posting.png"
+    assert images[0]["content_type"] == "image/png"
+
+    detail = client.get(response.headers["location"])
+    assert detail.status_code == 200
+    assert b"posting.png" in detail.content
+    assert b"/uploads/application_images/" in detail.content
+
+
+def test_application_image_delete_removes_record(client):
+    app_id = create_application(_app_data(company="DeleteImageCo"))
+    upload = client.post(
+        f"/applications/{app_id}/images",
+        files={"images": ("posting.jpg", b"fake-jpg", "image/jpeg")},
+    )
+    assert upload.status_code == 303
+    image_id = list_application_images(app_id)[0]["id"]
+
+    response = client.post(f"/applications/{app_id}/images/{image_id}/delete")
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/applications/{app_id}"
+    assert list_application_images(app_id) == []
 
 
 def test_application_detail_renders_without_editing(client, tmp_db):

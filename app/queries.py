@@ -276,6 +276,80 @@ def list_application_events(application_id: int) -> list[dict[str, Any]]:
     return events
 
 
+def list_application_images(application_id: int) -> list[dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            """
+            select * from application_images
+            where application_id = ?
+            order by created_at desc, id desc
+            """,
+            (application_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def create_application_image(
+    application_id: int,
+    *,
+    original_filename: str,
+    stored_path: str,
+    content_type: str,
+    size_bytes: int,
+    caption: str | None = None,
+) -> int:
+    now = ist_now_iso()
+    with closing(get_connection()) as conn:
+        if not conn.execute(
+            "select 1 from applications where id = ?", (application_id,)
+        ).fetchone():
+            raise ValueError(f"Application {application_id} does not exist.")
+        cursor = conn.execute(
+            """
+            insert into application_images
+                (application_id, original_filename, stored_path, content_type, size_bytes, caption, created_at)
+            values (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                application_id,
+                clean_text(original_filename) or "job-posting-image",
+                stored_path,
+                content_type,
+                size_bytes,
+                clean_text(caption),
+                now,
+            ),
+        )
+        _create_application_event(
+            conn,
+            application_id,
+            "note_added",
+            note=f"Added image: {clean_text(original_filename) or 'job-posting-image'}",
+        )
+        conn.commit()
+        return int(cursor.lastrowid)
+
+
+def get_application_image(image_id: int) -> dict[str, Any] | None:
+    with closing(get_connection()) as conn:
+        row = conn.execute(
+            "select * from application_images where id = ?", (image_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def delete_application_image(image_id: int) -> dict[str, Any]:
+    with closing(get_connection()) as conn:
+        row = conn.execute(
+            "select * from application_images where id = ?", (image_id,)
+        ).fetchone()
+        if not row:
+            raise ValueError(f"Application image {image_id} does not exist.")
+        conn.execute("delete from application_images where id = ?", (image_id,))
+        conn.commit()
+    return dict(row)
+
+
 def _initial_event_type(data: dict[str, Any]) -> str:
     status = data.get("status")
     if status == "applied":

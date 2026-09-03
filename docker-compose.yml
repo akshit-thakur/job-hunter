@@ -17,3 +17,4 @@ services:
       # Bind-mount so SQLite persists on the host at ./db/job_tracker.db
       # (same path convention as bare-metal ./start.sh).
       - ./db:/data
+      - ./uploads:/srv/app/uploads

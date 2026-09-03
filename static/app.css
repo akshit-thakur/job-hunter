@@ -436,6 +436,52 @@ body.bulk-mode .application-row {
   margin-top: 12px;
 }
 
+.application-images {
+  margin-top: 16px;
+}
+
+.image-upload-form {
+  border-bottom: 1px solid #e7edf3;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+}
+
+.application-image-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.application-image-card {
+  border: 1px solid #dde4ec;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.application-image-card img {
+  aspect-ratio: 4 / 3;
+  background: #f0f3f6;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.application-image-meta {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 8px;
+}
+
+.application-image-meta span {
+  color: #42586d;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status-pill,
 .source-pill,
 .mode-pill,

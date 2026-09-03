@@ -40,6 +40,43 @@
   </div>
 </section>
 
+<section class="panel application-images">
+  <div class="detail-section">
+    <h2 class="detail-section-title">Images</h2>
+    <form method="post" action="/applications/{{ application.id }}/images" enctype="multipart/form-data" class="image-upload-form form-compact">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-9">
+          <label class="form-label" for="images">Job posting screenshots</label>
+          <input class="form-control form-control-sm" id="images" name="images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-sm btn-primary w-100" type="submit">Upload Images</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {% if images %}
+  <div class="application-image-grid">
+    {% for image in images %}
+    <article class="application-image-card">
+      <a href="/uploads/{{ image.stored_path }}" target="_blank" rel="noopener">
+        <img src="/uploads/{{ image.stored_path }}" alt="{{ image.original_filename }}">
+      </a>
+      <div class="application-image-meta">
+        <span title="{{ image.original_filename }}">{{ image.original_filename }}</span>
+        <form method="post" action="/applications/{{ application.id }}/images/{{ image.id }}/delete">
+          <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-muted mb-0">No images yet.</p>
+  {% endif %}
+</section>
+
 <section class="panel application-activity">
   <div class="detail-section">
     <h2 class="detail-section-title">Activity</h2>

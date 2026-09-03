@@ -27,6 +27,7 @@ db/*.db
 db/*.db-shm
 db/*.db-wal
 logs/
+uploads/
 
 # OS
 .DS_Store

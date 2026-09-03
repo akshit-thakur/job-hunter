@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.config import STATIC_DIR, load_env_file
+from app.config import STATIC_DIR, UPLOADS_DIR, load_env_file
 
 load_env_file()
 
@@ -23,6 +23,8 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="Job Tracker", lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
     # JSON API (GET /stats, POST /applications) before HTML routers so the
     # POST /applications handler is registered alongside GET /applications.
     app.include_router(api.router)

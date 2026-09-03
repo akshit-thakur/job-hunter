@@ -1,9 +1,12 @@
 from datetime import date
+from pathlib import Path
+from uuid import uuid4
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.config import UPLOADS_DIR
 from app.models import (
     APPLICATION_EVENT_TYPES,
     APPLICATION_FIELDS,
@@ -14,18 +17,22 @@ from app.models import (
 from app.queries import (
     create_application_event,
     create_application,
+    create_application_image,
     create_duplicate_application,
     delete_application,
+    delete_application_image,
     bulk_update_application_fields,
     default_resume_name,
     duplicate_application_template,
     duplicate_last_url,
     find_duplicate_candidate,
     get_application,
+    get_application_image,
     import_applications_csv,
     import_applications_json,
     latest_application,
     list_application_events,
+    list_application_images,
     list_applications,
     list_resume_names,
     normalize_application_form,
@@ -35,6 +42,14 @@ from app.web import templates
 
 
 router = APIRouter()
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 FORM_FIELDS = tuple(
     field for field in APPLICATION_FIELDS if field not in ("id", "created_at", "updated_at")
@@ -82,6 +97,43 @@ def _new_application_defaults() -> dict:
         "work_mode": "unknown",
         "resume_version": default_resume_name(),
     }
+
+
+async def _save_application_images(
+    application_id: int,
+    images: list[UploadFile],
+) -> int:
+    saved_count = 0
+    if not images:
+        return saved_count
+
+    image_dir = UPLOADS_DIR / "application_images" / str(application_id)
+    image_dir.mkdir(parents=True, exist_ok=True)
+
+    for image in images:
+        if not image.filename:
+            continue
+        extension = ALLOWED_IMAGE_TYPES.get(image.content_type or "")
+        if extension is None:
+            raise HTTPException(status_code=400, detail="Upload PNG, JPG, GIF, or WebP images.")
+
+        content = await image.read()
+        if len(content) > MAX_IMAGE_BYTES:
+            raise HTTPException(status_code=400, detail="Images must be 10 MB or smaller.")
+
+        stored_name = f"{uuid4().hex}{extension}"
+        relative_path = Path("application_images") / str(application_id) / stored_name
+        destination = image_dir / stored_name
+        destination.write_bytes(content)
+        create_application_image(
+            application_id,
+            original_filename=image.filename,
+            stored_path=relative_path.as_posix(),
+            content_type=image.content_type or "application/octet-stream",
+            size_bytes=len(content),
+        )
+        saved_count += 1
+    return saved_count
 
 
 @router.get("/applications", response_class=HTMLResponse)
@@ -255,6 +307,7 @@ async def create_application_route(request: Request):
                 ),
             )
     application_id = create_application(data)
+    await _save_application_images(application_id, form.getlist("images"))
     return RedirectResponse(url=f"/applications/{application_id}", status_code=303)
 
 
@@ -281,9 +334,46 @@ def application_detail(request: Request, application_id: int):
         {
             "application": application,
             "events": list_application_events(application_id),
+            "images": list_application_images(application_id),
             "event_types": APPLICATION_EVENT_TYPES,
         },
     )
+
+
+@router.post("/applications/{application_id}/images")
+async def upload_application_images(
+    application_id: int,
+    images: list[UploadFile] = File(...),
+):
+    application = get_application(application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    if not images:
+        raise HTTPException(status_code=400, detail="Choose at least one image.")
+
+    saved_count = await _save_application_images(application_id, images)
+    if saved_count == 0:
+        raise HTTPException(status_code=400, detail="Choose at least one image.")
+
+    return RedirectResponse(url=f"/applications/{application_id}", status_code=303)
+
+
+@router.post("/applications/{application_id}/images/{image_id}/delete")
+def delete_application_image_route(application_id: int, image_id: int):
+    application = get_application(application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    image = get_application_image(image_id)
+    if not image or image["application_id"] != application_id:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    deleted = delete_application_image(image_id)
+    stored_path = UPLOADS_DIR / deleted["stored_path"]
+    try:
+        stored_path.unlink()
+    except FileNotFoundError:
+        pass
+    return RedirectResponse(url=f"/applications/{application_id}", status_code=303)
 
 
 @router.post("/applications/{application_id}/events")
@@ -338,4 +428,5 @@ async def update_application_route(request: Request, application_id: int):
             status_code=400,
         )
     update_application(application_id, data)
+    await _save_application_images(application_id, form.getlist("images"))
     return RedirectResponse(url=f"/applications/{application_id}", status_code=303)

@@ -68,6 +68,7 @@ final class AppModel: ObservableObject {
     @Published var workMode = "unknown"
     @Published var followUpDate = ""
     @Published var isSubmitting = false
+    @Published var isStartingBackend = false
 
     private var refreshTask: Task<Void, Never>?
     private var activationObserver: NSObjectProtocol?
@@ -175,6 +176,22 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func startBackend() async {
+        isStartingBackend = true
+        defer { isStartingBackend = false }
+
+        do {
+            let message = try await BackendStarter.start()
+            statusMessage = message
+            lastError = nil
+            try? await Task.sleep(for: .seconds(2))
+            await refreshStats()
+        } catch {
+            lastError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            statusMessage = nil
+        }
+    }
+
     func useActiveTab() {
         let tab = ActiveBrowserTabReader.readTab(from: lastBrowserApplication)
             ?? ActiveBrowserTabReader.readFrontmostTab()
@@ -249,6 +266,71 @@ final class AppModel: ObservableObject {
             }
         }
         return nil
+    }
+}
+
+enum BackendStartError: LocalizedError {
+    case scriptMissing([String])
+    case failed(Int32, String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .scriptMissing(paths):
+            return "Could not find start-backend.sh. Checked: \(paths.joined(separator: ", "))"
+        case let .failed(status, output):
+            let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty
+                ? "Docker backend start failed with exit code \(status)."
+                : "Docker backend start failed (\(status)): \(trimmed)"
+        }
+    }
+}
+
+struct BackendStarter {
+    static func start() async throws -> String {
+        try await Task.detached(priority: .userInitiated) {
+            try runScript()
+        }.value
+    }
+
+    private static func runScript() throws -> String {
+        let scriptURL = try locateScript()
+        let process = Process()
+        let output = Pipe()
+
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = [scriptURL.path]
+        process.standardOutput = output
+        process.standardError = output
+
+        try process.run()
+        process.waitUntilExit()
+
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let text = String(data: data, encoding: .utf8) ?? ""
+        guard process.terminationStatus == 0 else {
+            throw BackendStartError.failed(process.terminationStatus, text)
+        }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "Docker backend started"
+            : "Docker backend started"
+    }
+
+    private static func locateScript() throws -> URL {
+        let environment = ProcessInfo.processInfo.environment
+        let home = NSHomeDirectory()
+        let candidates = [
+            environment["JOB_HUNTER_BACKEND_SCRIPT"],
+            "\(home)/Codes/github/job-hunter/macos/launchd/start-backend.sh",
+            "\(home)/Code/github/job-hunter/macos/launchd/start-backend.sh",
+            "\(home)/Developer/job-hunter/macos/launchd/start-backend.sh",
+        ].compactMap { $0 }
+
+        let fileManager = FileManager.default
+        for path in candidates where fileManager.isExecutableFile(atPath: path) {
+            return URL(fileURLWithPath: path)
+        }
+        throw BackendStartError.scriptMissing(candidates)
     }
 }
 

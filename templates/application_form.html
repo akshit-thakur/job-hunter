@@ -44,7 +44,7 @@
 </div>
 {% endif %}
 
-<form method="post" action="{% if mode == 'edit' %}/applications/{{ application.id }}/edit{% else %}/applications/new{% endif %}" class="panel application-form">
+<form method="post" action="{% if mode == 'edit' %}/applications/{{ application.id }}/edit{% else %}/applications/new{% endif %}" enctype="multipart/form-data" class="panel application-form">
   <section class="form-section">
     <h2 class="form-section-title">Application</h2>
     <p class="form-section-hint">What you are applying for right now.</p>
@@ -60,6 +60,10 @@
       <div class="col-md-8">
         <label class="form-label" for="jd_url">Job posting URL</label>
         <input class="form-control" id="jd_url" name="jd_url" type="url" value="{{ application.jd_url or '' }}" placeholder="https://...">
+      </div>
+      <div class="col-md-8">
+        <label class="form-label" for="images">Job posting screenshots</label>
+        <input class="form-control" id="images" name="images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
       </div>
       <div class="col-md-2">
         <label class="form-label" for="status">Status</label>

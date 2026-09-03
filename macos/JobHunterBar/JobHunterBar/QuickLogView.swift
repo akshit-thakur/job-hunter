@@ -127,7 +127,13 @@ struct QuickLogView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             } else {
-                Text("Start the API with `docker compose up -d` (port 9000).")
+                Button(model.isStartingBackend ? "Starting Docker…" : "Start Docker Backend") {
+                    Task { await model.startBackend() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isStartingBackend)
+
+                Text("Uses macos/launchd/start-backend.sh on port 9000.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
