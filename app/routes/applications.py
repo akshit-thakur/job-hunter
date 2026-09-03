@@ -24,7 +24,6 @@ from app.queries import (
     delete_application,
     delete_application_image,
     bulk_update_application_fields,
-    default_resume_name,
     duplicate_application_template,
     duplicate_last_url,
     find_duplicate_candidate,
@@ -36,7 +35,6 @@ from app.queries import (
     list_application_events,
     list_application_images,
     list_applications,
-    list_resume_names,
     normalize_application_form,
     update_application,
 )
@@ -75,7 +73,6 @@ def form_context(
         "statuses": STATUSES,
         "sources": SOURCES,
         "work_modes": WORK_MODES,
-        "resume_names": list_resume_names(),
         "duplicate_warning": duplicate_warning,
         "duplicate_from": duplicate_from,
         "latest_application": latest,
@@ -99,7 +96,6 @@ def _new_application_defaults() -> dict:
         "applied_date": today,
         "source": "other",
         "work_mode": "unknown",
-        "resume_version": default_resume_name(),
     }
 
 

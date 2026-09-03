@@ -11,7 +11,7 @@ from app.config import STATIC_DIR, UPLOADS_DIR, load_env_file
 load_env_file()
 
 from app.db import get_connection, init_db
-from app.routes import api, applications, dashboard, export, extensions, followups, resumes
+from app.routes import api, applications, dashboard, export, extensions, followups
 
 
 @asynccontextmanager
@@ -30,7 +30,6 @@ def create_app() -> FastAPI:
     app.include_router(api.router)
     app.include_router(dashboard.router)
     app.include_router(applications.router)
-    app.include_router(resumes.router)
     app.include_router(followups.router)
     app.include_router(export.router)
     app.include_router(extensions.router)

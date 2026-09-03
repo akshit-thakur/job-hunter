@@ -80,7 +80,7 @@
 
   <section class="form-section">
     <h2 class="form-section-title">Profile defaults</h2>
-    <p class="form-section-hint">Portal, location, and resume — reuse these when you duplicate an application.</p>
+    <p class="form-section-hint">Portal and location — reuse these when you duplicate an application.</p>
     <div class="row g-3">
       <div class="col-md-4">
         <label class="form-label" for="source">Source</label>
@@ -97,19 +97,6 @@
       <div class="col-md-4">
         <label class="form-label" for="location">Location</label>
         <input class="form-control" id="location" name="location" value="{{ application.location or '' }}" placeholder="e.g. Remote, Bangalore">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label" for="resume_version">Resume used</label>
-        {% if resume_names %}
-        <input class="form-control" id="resume_version" name="resume_version" list="resume-options" value="{{ application.resume_version or '' }}" placeholder="Pick or type a resume name">
-        <datalist id="resume-options">
-          {% for name in resume_names %}<option value="{{ name }}">{% endfor %}
-        </datalist>
-        <div class="form-text"><a href="/resumes">Manage resume names</a></div>
-        {% else %}
-        <input class="form-control" id="resume_version" name="resume_version" value="{{ application.resume_version or '' }}" placeholder="e.g. backend-2026">
-        <div class="form-text"><a href="/resumes">Add resume names</a> for quick pick-list.</div>
-        {% endif %}
       </div>
       <div class="col-md-3">
         <label class="form-label" for="follow_up_date">Follow-up date</label>
@@ -132,6 +119,10 @@
       <div class="col-12">
         <label class="form-label" for="notes">Notes</label>
         <textarea class="form-control" id="notes" name="notes" rows="4" placeholder="Portal login, recruiter name, referral, etc.">{{ application.notes or '' }}</textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="job_description">Job description</label>
+        <textarea class="form-control" id="job_description" name="job_description" rows="10" placeholder="Paste the full job description here.">{{ application.job_description or '' }}</textarea>
       </div>
     </div>
   </details>

@@ -62,8 +62,8 @@ IMPORT_FIELD_ALIASES = {
     "job_url": "jd_url",
     "job_posting_url": "jd_url",
     "mode": "work_mode",
-    "resume": "resume_version",
-    "resume_used": "resume_version",
+    "jd": "job_description",
+    "description": "job_description",
     "followup_date": "follow_up_date",
 }
 
@@ -173,7 +173,7 @@ def normalize_application_form(form: dict[str, Any]) -> tuple[dict[str, Any], li
         "salary_min": parse_float(form.get("salary_min"), "Minimum salary", errors),
         "salary_max": parse_float(form.get("salary_max"), "Maximum salary", errors),
         "status": clean_text(form.get("status")) or "saved",
-        "resume_version": clean_text(form.get("resume_version")),
+        "job_description": clean_text(form.get("job_description")),
         "applied_date": parse_date(form.get("applied_date"), "Applied date", errors),
         "follow_up_date": parse_date(form.get("follow_up_date"), "Follow-up date", errors),
         "notes": clean_text(form.get("notes")),
@@ -403,20 +403,6 @@ def _log_application_changes(
                 "new_follow_up_date": values["follow_up_date"],
             },
         )
-    if (
-        "resume_version" in values
-        and values["resume_version"]
-        and values["resume_version"] != existing.get("resume_version")
-    ):
-        _create_application_event(
-            conn,
-            application_id,
-            "resume_sent",
-            metadata={
-                "old_resume_version": existing.get("resume_version"),
-                "new_resume_version": values["resume_version"],
-            },
-        )
     if "notes" in values and values["notes"] and values["notes"] != existing.get("notes"):
         _create_application_event(conn, application_id, "note_added", note=values["notes"])
 
@@ -519,6 +505,9 @@ def _json_item_to_import_row(item: dict[str, Any]) -> dict[str, Any]:
         "applied_date": clean_import_text(item.get("applied_date")),
         "jd_url": job_url,
         "source": clean_import_text(item.get("source")) or "other",
+        "job_description": clean_import_text(
+            item.get("job_description") or item.get("description")
+        ),
         "notes": "\n".join(note_parts) or None,
     }
 
@@ -605,6 +594,7 @@ def import_applications_json(content: str) -> dict[str, Any]:
         "applied_date",
         "jd_url",
         "source",
+        "job_description",
         "notes",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -783,7 +773,7 @@ def _count_value(
     exclude_freelance: bool = False,
     exclude_unknown: bool = False,
 ) -> list[dict[str, Any]]:
-    if column not in {"status", "source", "resume_version", "location", "work_mode"}:
+    if column not in {"status", "source", "location", "work_mode"}:
         raise ValueError("Unsupported breakdown column.")
     label = f"coalesce(nullif({column}, ''), 'unset')"
     clauses = []
@@ -951,99 +941,3 @@ def duplicate_last_url() -> str | None:
     if not latest:
         return None
     return f"/applications/{latest['id']}/duplicate"
-
-
-def list_resume_names() -> list[str]:
-    with closing(get_connection()) as conn:
-        rows = conn.execute(
-            "select name from resumes order by is_default desc, name collate nocase"
-        ).fetchall()
-    return [row[0] for row in rows]
-
-
-def list_resumes() -> list[dict[str, Any]]:
-    with closing(get_connection()) as conn:
-        rows = conn.execute(
-            "select * from resumes order by is_default desc, name collate nocase"
-        ).fetchall()
-    return [dict(row) for row in rows]
-
-
-def get_resume(resume_id: int) -> dict[str, Any] | None:
-    with closing(get_connection()) as conn:
-        row = conn.execute("select * from resumes where id = ?", (resume_id,)).fetchone()
-    return dict(row) if row else None
-
-
-def default_resume_name() -> str | None:
-    with closing(get_connection()) as conn:
-        row = conn.execute(
-            "select name from resumes where is_default = 1 order by id limit 1"
-        ).fetchone()
-    return row[0] if row else None
-
-
-def normalize_resume_form(form: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-    errors: list[str] = []
-    name = clean_text(form.get("name"))
-    notes = clean_text(form.get("notes"))
-    is_default = str(form.get("is_default", "")).lower() in {"1", "true", "on", "yes"}
-    if not name:
-        errors.append("Resume name is required.")
-    return {"name": name, "notes": notes, "is_default": is_default}, errors
-
-
-def create_resume(data: dict[str, Any]) -> int:
-    now = ist_now_iso()
-    with closing(get_connection()) as conn:
-        if data["is_default"]:
-            conn.execute("update resumes set is_default = 0")
-        cursor = conn.execute(
-            """
-            insert into resumes (name, notes, is_default, created_at, updated_at)
-            values (?, ?, ?, ?, ?)
-            """,
-            (data["name"], data["notes"], int(data["is_default"]), now, now),
-        )
-        conn.commit()
-        return int(cursor.lastrowid)
-
-
-def update_resume(resume_id: int, data: dict[str, Any]) -> None:
-    now = ist_now_iso()
-    with closing(get_connection()) as conn:
-        if data["is_default"]:
-            conn.execute("update resumes set is_default = 0")
-        cursor = conn.execute(
-            """
-            update resumes
-            set name = ?, notes = ?, is_default = ?, updated_at = ?
-            where id = ?
-            """,
-            (data["name"], data["notes"], int(data["is_default"]), now, resume_id),
-        )
-        try:
-            ensure_one_row(cursor, "Resume", resume_id)
-        except ValueError:
-            conn.rollback()
-            raise
-        conn.commit()
-
-
-def delete_resume(resume_id: int) -> None:
-    with closing(get_connection()) as conn:
-        cursor = conn.execute("delete from resumes where id = ?", (resume_id,))
-        try:
-            ensure_one_row(cursor, "Resume", resume_id)
-        except ValueError:
-            conn.rollback()
-            raise
-        conn.commit()
-
-
-def resume_usage_count(name: str) -> int:
-    with closing(get_connection()) as conn:
-        row = conn.execute(
-            "select count(*) from applications where resume_version = ?", (name,)
-        ).fetchone()
-    return int(row[0])

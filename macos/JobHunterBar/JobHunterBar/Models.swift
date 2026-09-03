@@ -80,7 +80,6 @@ struct ApplicationResponse: Codable, Equatable, Sendable {
     let source: String
     let workMode: String
     let location: String?
-    let resumeVersion: String?
     let followUpDate: String?
 
     enum CodingKeys: String, CodingKey {
@@ -93,7 +92,6 @@ struct ApplicationResponse: Codable, Equatable, Sendable {
         case source
         case workMode = "work_mode"
         case location
-        case resumeVersion = "resume_version"
         case followUpDate = "follow_up_date"
     }
 }

@@ -110,6 +110,18 @@ MIGRATIONS: list[tuple[str, str]] = [
         "012_idx_application_images_application_id",
         "CREATE INDEX IF NOT EXISTS idx_application_images_application_id ON application_images (application_id, created_at DESC)",
     ),
+    (
+        "013_add_application_job_description",
+        "ALTER TABLE applications ADD COLUMN job_description TEXT",
+    ),
+    (
+        "014_drop_application_resume_version",
+        "ALTER TABLE applications DROP COLUMN resume_version",
+    ),
+    (
+        "015_drop_resumes",
+        "DROP TABLE IF EXISTS resumes",
+    ),
 ]
 
 

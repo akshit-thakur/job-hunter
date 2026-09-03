@@ -61,7 +61,7 @@ All optional; code defaults cover local use, so `.env` is not required.
 - salary_min
 - salary_max
 - status
-- resume_version
+- job_description
 - applied_date
 - follow_up_date
 - notes
@@ -82,7 +82,7 @@ Salary fields are plain numbers (currency-agnostic) — this app doesn't assume 
 
 ## Scope
 
-The app tracks job applications, follow-ups, resume versions, and weekly application progress.
+The app tracks job applications, follow-ups, job descriptions, and weekly application progress.
 
 ### Allowed change scope
 - SQLite PRAGMAs (WAL, synchronous, busy_timeout, foreign_keys)

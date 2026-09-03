@@ -21,7 +21,7 @@ def _app_data(**overrides):
         "salary_min": None,
         "salary_max": None,
         "status": "saved",
-        "resume_version": None,
+        "job_description": None,
         "applied_date": None,
         "follow_up_date": None,
         "notes": None,
@@ -41,7 +41,6 @@ def test_dashboard_renders_location_and_work_mode_breakdowns(client, tmp_db):
     assert resp.status_code == 200
     assert b"Location Breakdown" in resp.content
     assert b"Work Mode Breakdown" in resp.content
-    assert b"Resume Version Breakdown" not in resp.content
     assert b"Closed Applications" in resp.content
     assert b"Follow-ups Due" not in resp.content
     assert b"Weekly Application Target" not in resp.content
@@ -174,6 +173,7 @@ def test_application_form_renders(client):
     resp = client.get("/applications/new")
     assert resp.status_code == 200
     assert b"Add Application" in resp.content
+    assert b'name="job_description"' in resp.content
     assert b'name="images"' in resp.content
     assert b'enctype="multipart/form-data"' in resp.content
 
@@ -379,7 +379,7 @@ def _post_form(**overrides):
         "salary_min": "",
         "salary_max": "",
         "status": "saved",
-        "resume_version": "",
+        "job_description": "",
         "applied_date": "",
         "follow_up_date": "",
         "notes": "",
@@ -388,10 +388,16 @@ def _post_form(**overrides):
 
 
 def test_create_application_redirects_to_edit(client):
-    resp = client.post("/applications/new", data=_post_form())
+    resp = client.post(
+        "/applications/new",
+        data=_post_form(job_description="Build Flask and FastAPI tools."),
+    )
     assert resp.status_code == 303
     assert resp.headers["location"].startswith("/applications/")
     assert not resp.headers["location"].endswith("/edit")
+    app_id = int(resp.headers["location"].rsplit("/", 1)[-1])
+    application = get_application(app_id)
+    assert application["job_description"] == "Build Flask and FastAPI tools."
 
 
 def test_create_application_validation_error(client):
@@ -440,7 +446,7 @@ def test_edit_application_updates_and_redirects(client):
             "salary_min": None,
             "salary_max": None,
             "status": "saved",
-            "resume_version": None,
+            "job_description": None,
             "applied_date": None,
             "follow_up_date": None,
             "notes": None,
@@ -485,7 +491,7 @@ def test_edit_application_validation_error(client):
             "salary_min": None,
             "salary_max": None,
             "status": "saved",
-            "resume_version": None,
+            "job_description": None,
             "applied_date": None,
             "follow_up_date": None,
             "notes": None,

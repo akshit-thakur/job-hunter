@@ -23,10 +23,10 @@ class ApplicationCreateRequest(BaseModel):
     url: str | None = None
     status: str = "applied"
     notes: str | None = None
+    job_description: str | None = None
     source: str | None = None
     work_mode: str | None = None
     location: str | None = None
-    resume_version: str | None = None
     follow_up_date: str | None = None
 
     @field_validator("company", "role", mode="before")
@@ -39,10 +39,10 @@ class ApplicationCreateRequest(BaseModel):
     @field_validator(
         "url",
         "notes",
+        "job_description",
         "source",
         "work_mode",
         "location",
-        "resume_version",
         "follow_up_date",
         mode="before",
     )
@@ -70,10 +70,10 @@ class ApplicationCreateResponse(BaseModel):
     url: str | None
     status: str
     notes: str | None
+    job_description: str | None
     source: str
     work_mode: str
     location: str | None
-    resume_version: str | None
     follow_up_date: str | None
 
 
@@ -103,12 +103,12 @@ def post_application(body: ApplicationCreateRequest) -> ApplicationCreateRespons
         "jd_url": body.url,
         "status": body.status,
         "notes": body.notes,
+        "job_description": body.job_description,
         "work_mode": body.work_mode or "unknown",
         "source": body.source or "other",
         "location": body.location,
         "salary_min": None,
         "salary_max": None,
-        "resume_version": body.resume_version,
         "applied_date": date.today().isoformat() if body.status != "saved" else None,
         "follow_up_date": body.follow_up_date,
     }
@@ -124,9 +124,9 @@ def post_application(body: ApplicationCreateRequest) -> ApplicationCreateRespons
         url=data["jd_url"],
         status=data["status"],
         notes=data["notes"],
+        job_description=data["job_description"],
         source=data["source"],
         work_mode=data["work_mode"],
         location=data["location"],
-        resume_version=data["resume_version"],
         follow_up_date=data["follow_up_date"],
     )

@@ -53,7 +53,7 @@
     <thead>
       {% if mode == "followups" %}
       <tr>
-        <th class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" data-select-all aria-label="Select all applications"></th><th>Follow-up</th><th>Company</th><th>Role</th><th>Status</th><th>Source</th><th>Resume</th><th>Notes</th><th class="action-column" data-row-actions></th>
+        <th class="bulk-select-cell" data-bulk-select hidden><input type="checkbox" data-select-all aria-label="Select all applications"></th><th>Follow-up</th><th>Company</th><th>Role</th><th>Status</th><th>Source</th><th>Notes</th><th class="action-column" data-row-actions></th>
       </tr>
       {% else %}
       <tr>
@@ -72,7 +72,6 @@
         <td>{{ app.role_title }}</td>
         <td>{{ status_badge(app.status) }}</td>
         <td>{{ source_badge(app.source) }}</td>
-        <td>{{ app.resume_version or "" }}</td>
         <td class="notes-cell">{{ app.notes or "" }}</td>
         <td class="text-end action-column" data-row-actions>
           <form method="post" action="/applications/{{ app.id }}/events" class="d-inline">

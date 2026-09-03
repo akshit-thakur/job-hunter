@@ -14,7 +14,7 @@ def _app_data(**overrides):
         "salary_min": None,
         "salary_max": None,
         "status": "applied",
-        "resume_version": None,
+        "job_description": None,
         "applied_date": "2026-08-01",
         "follow_up_date": None,
         "notes": None,
@@ -63,6 +63,7 @@ def test_post_application_creates_row(client):
             "url": "https://example.com/jobs/1",
             "status": "applied",
             "notes": "From menu bar",
+            "job_description": "Build iOS features.",
         },
     )
     assert resp.status_code == 201
@@ -73,6 +74,7 @@ def test_post_application_creates_row(client):
     assert body["url"] == "https://example.com/jobs/1"
     assert body["status"] == "applied"
     assert body["notes"] == "From menu bar"
+    assert body["job_description"] == "Build iOS features."
     assert body["source"] == "company_site"
     assert body["work_mode"] == "unknown"
 
@@ -98,6 +100,7 @@ def test_post_application_trims_compact_form_values(client):
             "role": "  Engineer  ",
             "url": "  https://example.com/job  ",
             "notes": "  Follow up Friday  ",
+            "job_description": "  Python and SQL  ",
         },
     )
     assert resp.status_code == 201
@@ -108,10 +111,10 @@ def test_post_application_trims_compact_form_values(client):
         "url": "https://example.com/job",
         "status": "applied",
         "notes": "Follow up Friday",
+        "job_description": "Python and SQL",
         "source": "company_site",
         "work_mode": "unknown",
         "location": None,
-        "resume_version": None,
         "follow_up_date": None,
     }
 
@@ -126,7 +129,7 @@ def test_post_application_accepts_structured_quick_add_fields(client):
             "source": "linkedin",
             "work_mode": "remote",
             "location": "Remote",
-            "resume_version": "backend-2026",
+            "job_description": "Backend APIs",
             "follow_up_date": "2026-08-20",
         },
     )
@@ -135,7 +138,7 @@ def test_post_application_accepts_structured_quick_add_fields(client):
     assert body["source"] == "linkedin"
     assert body["work_mode"] == "remote"
     assert body["location"] == "Remote"
-    assert body["resume_version"] == "backend-2026"
+    assert body["job_description"] == "Backend APIs"
     assert body["follow_up_date"] == "2026-08-20"
 
 

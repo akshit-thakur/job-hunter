@@ -4,8 +4,6 @@ from app.queries import (
     create_application,
     bulk_update_application_fields,
     create_application_event,
-    create_resume,
-    delete_resume,
     due_followups,
     get_application,
     infer_source_from_url,
@@ -14,7 +12,6 @@ from app.queries import (
     list_application_events,
     list_applications,
     update_application,
-    update_resume,
     dashboard_metrics,
 )
 
@@ -30,7 +27,7 @@ def _app_data(**overrides):
         "salary_min": None,
         "salary_max": None,
         "status": "saved",
-        "resume_version": None,
+        "job_description": None,
         "applied_date": None,
         "follow_up_date": None,
         "notes": None,
@@ -64,10 +61,18 @@ def test_create_application_logs_applied_event(tmp_db):
 
 def test_update_application(tmp_db):
     app_id = create_application(_app_data())
-    update_application(app_id, {"status": "applied", "notes": "Updated"})
+    update_application(
+        app_id,
+        {
+            "status": "applied",
+            "notes": "Updated",
+            "job_description": "Python backend role.",
+        },
+    )
     result = get_application(app_id)
     assert result["status"] == "applied"
     assert result["notes"] == "Updated"
+    assert result["job_description"] == "Python backend role."
     assert result["company"] == "Acme"
 
     events = list_application_events(app_id)
@@ -81,16 +86,15 @@ def test_update_application(tmp_db):
     }
 
 
-def test_update_application_logs_follow_up_and_resume_changes(tmp_db):
+def test_update_application_logs_follow_up_changes(tmp_db):
     app_id = create_application(_app_data())
     update_application(
         app_id,
-        {"follow_up_date": "2026-08-20", "resume_version": "backend-2026"},
+        {"follow_up_date": "2026-08-20"},
     )
     events = list_application_events(app_id)
     event_types = [event["event_type"] for event in events]
     assert "follow_up_scheduled" in event_types
-    assert "resume_sent" in event_types
 
 
 def test_create_application_event_validates_application_and_type(tmp_db):
@@ -139,25 +143,6 @@ def test_bulk_update_changes_only_status_source_and_work_mode(tmp_db):
         assert application["source"] == "upwork"
         assert application["work_mode"] == "freelance"
         assert application["notes"] == notes
-
-
-def test_update_and_delete_missing_resume_raise(tmp_db):
-    try:
-        update_resume(99999, {"name": "missing", "notes": None, "is_default": False})
-    except ValueError as exc:
-        assert "Resume 99999" in str(exc)
-    else:
-        raise AssertionError("Expected ValueError for missing resume update")
-
-    resume_id = create_resume({"name": "temp", "notes": None, "is_default": False})
-    delete_resume(resume_id)
-
-    try:
-        delete_resume(resume_id)
-    except ValueError as exc:
-        assert f"Resume {resume_id}" in str(exc)
-    else:
-        raise AssertionError("Expected ValueError for missing resume delete")
 
 
 def test_list_applications_status_filter(tmp_db):
@@ -292,6 +277,17 @@ def test_import_applications_csv_creates_and_updates(tmp_db):
     assert rows[0]["source"] == "company_portal"
 
 
+def test_import_applications_csv_accepts_job_description(tmp_db):
+    summary = import_applications_csv(
+        "company,role_title,status,job_description\n"
+        "JDCo,Engineer,saved,Build FastAPI services\n"
+    )
+
+    assert summary["created"] == 1
+    row = list_applications(search="JDCo")[0]
+    assert row["job_description"] == "Build FastAPI services"
+
+
 def test_import_applications_csv_skips_invalid_rows(tmp_db):
     summary = import_applications_csv("company,role_title,status\n,Engineer,applied\n")
     assert summary["created"] == 0
@@ -311,6 +307,7 @@ def test_import_applications_json_handles_linkedin_scraper_shape(tmp_db):
             "status": "No longer accepting applications",
             "timestamp": "Applied 3mo ago",
             "job_url": "https://www.linkedin.com/jobs/view/4409004132/",
+            "description": "Own data pipelines and analytics models.",
             "scraped_at": "2026-08-15T22:46:35.675Z"
         }
         """
@@ -326,6 +323,7 @@ def test_import_applications_json_handles_linkedin_scraper_shape(tmp_db):
     assert rows[0]["location"] == "Bengaluru"
     assert rows[0]["status"] == "applied"
     assert rows[0]["source"] == "linkedin"
+    assert rows[0]["job_description"] == "Own data pipelines and analytics models."
     assert "No longer accepting applications" in rows[0]["notes"]
 
 

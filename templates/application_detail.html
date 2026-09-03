@@ -26,7 +26,6 @@
     <h2 class="detail-section-title">Tracking</h2>
     <div class="detail-fields">
       <div class="detail-item"><div class="detail-label">Source</div><div>{{ ui.source_badge(application.source) }}</div></div>
-      <div class="detail-item"><div class="detail-label">Resume used</div><div>{{ application.resume_version or "Not specified" }}</div></div>
       <div class="detail-item"><div class="detail-label">Applied</div><div>{{ application.applied_date or "Not specified" }}</div></div>
       <div class="detail-item"><div class="detail-label">Follow-up</div><div>{{ application.follow_up_date or "Not specified" }}</div></div>
       <div class="detail-item"><div class="detail-label">Salary range</div><div>{{ application.salary_min or "" }}{% if application.salary_min and application.salary_max %} - {% endif %}{{ application.salary_max or "Not specified" }}</div></div>
@@ -37,6 +36,11 @@
   <div class="detail-section">
     <h2 class="detail-section-title">Notes</h2>
     <div class="detail-notes">{{ application.notes or "No notes" }}</div>
+  </div>
+
+  <div class="detail-section">
+    <h2 class="detail-section-title">Job Description</h2>
+    <div class="detail-notes">{{ application.job_description or "No job description" }}</div>
   </div>
 </section>
 
@@ -134,9 +138,6 @@
         {% endif %}
         {% if event.metadata.old_follow_up_date or event.metadata.new_follow_up_date %}
         <div class="activity-meta">Follow-up: {{ event.metadata.old_follow_up_date or "unset" }} -&gt; {{ event.metadata.new_follow_up_date or "unset" }}</div>
-        {% endif %}
-        {% if event.metadata.old_resume_version or event.metadata.new_resume_version %}
-        <div class="activity-meta">Resume: {{ event.metadata.old_resume_version or "unset" }} -&gt; {{ event.metadata.new_resume_version or "unset" }}</div>
         {% endif %}
         {% if event.note %}
         <div class="activity-note">{{ event.note }}</div>

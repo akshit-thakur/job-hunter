@@ -1,6 +1,5 @@
 from app.queries import (
     create_application,
-    create_resume,
     duplicate_application_template,
     get_application,
 )
@@ -17,7 +16,7 @@ def _app_data(**overrides):
         "salary_min": 100000.0,
         "salary_max": 150000.0,
         "status": "applied",
-        "resume_version": "backend-2026",
+        "job_description": "Build backend services in Python.",
         "applied_date": "2026-08-01",
         "follow_up_date": None,
         "notes": "LinkedIn Easy Apply",
@@ -36,7 +35,7 @@ def test_duplicate_application_template_copies_everything_except_company_and_jd(
     assert application["location"] == "Remote"
     assert application["source"] == "linkedin"
     assert application["work_mode"] == "remote"
-    assert application["resume_version"] == "backend-2026"
+    assert application["job_description"] == "Build backend services in Python."
     assert application["notes"] == "LinkedIn Easy Apply"
     assert application["status"] == "applied"
     assert application["applied_date"] == "2026-08-01"
@@ -83,28 +82,7 @@ def test_duplicate_url_post_creates_new_application(client, tmp_db):
     assert duplicated["jd_url"] == ""
     assert duplicated["role_title"] == "Engineer"
     assert duplicated["source"] == "linkedin"
-    assert duplicated["resume_version"] == "backend-2026"
-
-
-def test_create_resume_and_list(client):
-    resp = client.post(
-        "/resumes/new",
-        data={"name": "staff-2026", "notes": "Leadership focus", "is_default": "1"},
-    )
-    assert resp.status_code == 303
-    assert resp.headers["location"] == "/resumes"
-
-    page = client.get("/resumes")
-    assert page.status_code == 200
-    assert b"staff-2026" in page.content
-    assert b"Leadership focus" in page.content
-
-
-def test_default_resume_prefills_new_application(client, tmp_db):
-    create_resume({"name": "default-resume", "notes": None, "is_default": True})
-    resp = client.get("/applications/new")
-    assert resp.status_code == 200
-    assert b'default-resume' in resp.content
+    assert duplicated["job_description"] == "Build backend services in Python."
 
 
 def test_duplicate_last_keyboard_hint_on_new_form(client, tmp_db):
